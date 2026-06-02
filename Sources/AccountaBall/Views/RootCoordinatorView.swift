@@ -17,11 +17,17 @@ struct RootCoordinatorView: View {
                     .transition(.opacity)
 
             case .session:
-                // Tapping the edge ball opens the progress panel (the widget is
-                // too small to host a centered overlay).
+                // Tapping the edge ball opens the "What's up?" card.
                 SessionBallView(
-                    onTap: { withAnimation { state.appPhase = .progress } },
+                    onTap: { withAnimation { state.appPhase = .whatsUp } },
                     onOffTaskDismiss: {}
+                )
+                .transition(.opacity)
+
+            case .whatsUp:
+                WhatsUpView(
+                    onShowLog: { withAnimation { state.appPhase = .progress } },
+                    onDismiss: { withAnimation { state.appPhase = .session } }
                 )
                 .transition(.opacity)
 

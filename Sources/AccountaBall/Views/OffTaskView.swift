@@ -62,6 +62,14 @@ struct OffTaskView: View {
                         .disabled(excuseText.isEmpty || isEvaluating)
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else {
+                // Verdict shown — the user dismisses it themselves.
+                Button("Got it") {
+                    dbg("verdict dismissed by user -> resume")
+                    engine.resumeAfterExcuse()
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .transition(.opacity)
             }
         }
         .padding(20)
@@ -109,11 +117,8 @@ struct OffTaskView: View {
             }
             isEvaluating = false
             withAnimation { stage = justified ? .accepted : .rejected }
-            dbg("verdict shown (stage=\(justified ? "accepted" : "rejected")), holding 2s")
-            // Hold the verdict on screen briefly, then minimize back to the edge ball.
-            try? await Task.sleep(for: .seconds(2))
-            dbg("resume after verdict")
-            engine.resumeAfterExcuse()
+            dbg("verdict shown (stage=\(justified ? "accepted" : "rejected")) — waiting for user to dismiss")
+            // Stays on screen until the user taps "Got it".
         }
     }
 }

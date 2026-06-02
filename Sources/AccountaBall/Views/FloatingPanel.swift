@@ -38,6 +38,9 @@ class FloatingPanel: NSPanel {
             // Small widget peeking at the right edge — does NOT cover the screen,
             // so the rest of the desktop stays clickable.
             anchorRightEdge(size: NSSize(width: 130, height: 170))
+        case .whatsUp:
+            // "What's up?" card with the two option buttons, near the ball.
+            anchorRightEdge(size: NSSize(width: 300, height: 300))
         case .offTask:
             // A side panel taking ~1/4 of the screen width (not a full-screen takeover).
             if let vf = NSScreen.main?.visibleFrame {

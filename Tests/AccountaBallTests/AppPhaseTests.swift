@@ -20,6 +20,7 @@ func runAppPhaseTests() {
             case .welcome:  return "welcome"
             case .setup:    return "setup"
             case .session:  return "session"
+            case .whatsUp:  return "whatsUp"
             case .offTask:  return "offTask"
             case .progress: return "progress"
             case .complete: return "complete"

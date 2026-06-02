@@ -1,39 +1,27 @@
 import SwiftUI
 
 struct WhatsUpView: View {
-    @EnvironmentObject var state: AppState
+    var onShowLog: () -> Void
     var onDismiss: () -> Void
 
-    @State private var showProgress = false
-
     var body: some View {
-        ZStack {
-            if showProgress {
-                AccountaProgressView(onBack: { showProgress = false; onDismiss() })
-                    .transition(.opacity)
-            } else {
-                VStack(spacing: 20) {
-                    SpeechBubble(text: "What's up?")
-                    BasketballView(size: 80, showFace: .happy)
+        VStack(spacing: 18) {
+            SpeechBubble(text: "What's up?")
+            BasketballView(size: 80, showFace: .happy)
 
-                    HStack(spacing: 16) {
-                        Button("Show my progress") {
-                            withAnimation { showProgress = true }
-                        }
-                        .buttonStyle(PrimaryButtonStyle())
+            VStack(spacing: 10) {
+                Button("Session log") { onShowLog() }
+                    .buttonStyle(PrimaryButtonStyle())
 
-                        Button("Nothing") { onDismiss() }
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white.opacity(0.6))
-                            .buttonStyle(.plain)
-                    }
-                }
-                .padding(32)
-                .background(Color.black.opacity(0.85))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                Button("Nothing") { onDismiss() }
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .buttonStyle(.plain)
             }
         }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.9))
     }
 }
 
