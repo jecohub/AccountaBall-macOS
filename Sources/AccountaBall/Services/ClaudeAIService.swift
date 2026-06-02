@@ -50,6 +50,20 @@ class ClaudeAIService: AIService {
         return Self.parseResponse(text)
     }
 
+    func classifyMulti(tasks: [TaskItem], screenText: String) async throws -> MultiTaskResult {
+        let result = try await classify(task: tasks.first?.task ?? "", screenText: screenText)
+        switch result {
+        case .onTask: return .onTask(index: 0)
+        case .offTask: return .offTask
+        case .done:   return .done(index: 0)
+        case .idle:   return .offTask
+        }
+    }
+
+    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> Bool {
+        return true
+    }
+
     static func parseResponse(_ raw: String) -> BallState {
         let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         switch cleaned {

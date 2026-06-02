@@ -12,6 +12,7 @@ DispatchQueue.main.async {
     runAppPhaseTests()
     runTaskItemTests()
     runMultiTaskResultTests()
+    runMultiTaskClassificationTests()
     reportAndExit()
 }
 RunLoop.main.run()

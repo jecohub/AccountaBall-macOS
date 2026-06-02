@@ -2,6 +2,8 @@
 
 private class MockAI: AIService {
     func classify(task: String, screenText: String) async throws -> BallState { .onTask }
+    func classifyMulti(tasks: [TaskItem], screenText: String) async throws -> MultiTaskResult { .offTask }
+    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> Bool { true }
 }
 
 @MainActor
