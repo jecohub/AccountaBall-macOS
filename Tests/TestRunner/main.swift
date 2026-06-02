@@ -10,6 +10,7 @@ DispatchQueue.main.async {
     runClaudeAIServiceTests()
     runAppPhaseTests()
     runTaskItemTests()
+    runMultiTaskResultTests()
     reportAndExit()
 }
 RunLoop.main.run()
