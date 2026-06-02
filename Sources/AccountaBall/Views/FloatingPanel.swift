@@ -39,8 +39,12 @@ class FloatingPanel: NSPanel {
             // so the rest of the desktop stays clickable.
             anchorRightEdge(size: NSSize(width: 130, height: 170))
         case .offTask:
-            // Larger edge panel to fit the angry ball + excuse input.
-            anchorRightEdge(size: NSSize(width: 360, height: 360))
+            // A side panel taking ~1/4 of the screen width (not a full-screen takeover).
+            if let vf = NSScreen.main?.visibleFrame {
+                anchorRightEdge(size: NSSize(width: vf.width * 0.25, height: vf.height * 0.6))
+            } else {
+                anchorRightEdge(size: NSSize(width: 360, height: 420))
+            }
         case .progress:
             setContentSize(NSSize(width: 480, height: 420)); center()
         case .complete:
