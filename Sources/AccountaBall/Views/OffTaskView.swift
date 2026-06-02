@@ -75,8 +75,12 @@ struct OffTaskView: View {
         dbg("offtask prompt appeared (activeTasks=\(state.activeTasks.count), screenTextLen=\(lastScreenText.count))")
         timeoutTask?.cancel()
         timeoutTask = Task { @MainActor in
-            try? await Task.sleep(for: responseWindow)
-            guard state.appPhase == .offTask else { return }
+            do {
+                try await Task.sleep(for: responseWindow)
+            } catch {
+                return  // cancelled (e.g. the user submitted) — do NOT resume
+            }
+            guard !Task.isCancelled, state.appPhase == .offTask else { return }
             dbg("offtask 2-min timeout fired -> resume")
             engine.resumeAfterExcuse()
         }
