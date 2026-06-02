@@ -26,7 +26,10 @@ class OpenRouterAIService: AIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw URLError(.badServerResponse)
+        }
         guard
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let choices = json["choices"] as? [[String: Any]],
@@ -41,14 +44,20 @@ class OpenRouterAIService: AIService {
     func classify(task: String, screenText: String) async throws -> BallState {
         let system = "You are an accountability assistant. Respond with exactly one word: ONTASK, OFFTASK, or DONE. No explanation."
         let raw = try await sendMessage(system: system, user: "Task: \(task)\n\nScreen text:\n\(screenText)", maxTokens: 10)
-        return ClaudeAIService.parseResponse(raw)
+        let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        switch cleaned {
+        case "ONTASK": return .onTask
+        case "OFFTASK": return .offTask
+        case "DONE":   return .done
+        default:       return .onTask
+        }
     }
 
     // MARK: - Multi-task
 
     static func buildClassifyPrompt(tasks: [TaskItem], screenText: String) -> String {
         let taskList = tasks.enumerated().map { i, t in
-            "TASK \(i): \(t.task)\n  Context: \(t.context)"
+            "[\(i)] \(t.task) — \(t.context)"
         }.joined(separator: "\n")
         return "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)"
     }

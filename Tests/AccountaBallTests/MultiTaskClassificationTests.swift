@@ -9,10 +9,10 @@ func runMultiTaskClassificationTests() {
 
         // Test the static prompt builder — no network needed
         let prompt = OpenRouterAIService.buildClassifyPrompt(tasks: tasks, screenText: "Google Docs open")
-        expect(prompt.contains("TASK 0"), "prompt includes TASK 0 header")
+        expect(prompt.contains("[0]"), "prompt includes [0] task header")
         expect(prompt.contains("write proposal"), "prompt includes task 0 name")
         expect(prompt.contains("for client meeting friday"), "prompt includes task 0 context")
-        expect(prompt.contains("TASK 1"), "prompt includes TASK 1 header")
+        expect(prompt.contains("[1]"), "prompt includes [1] task header")
         expect(prompt.contains("review slides"), "prompt includes task 1 name")
         expect(prompt.contains("Google Docs open"), "prompt includes screen text")
 
