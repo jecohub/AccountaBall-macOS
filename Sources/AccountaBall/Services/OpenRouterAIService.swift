@@ -23,6 +23,7 @@ class OpenRouterAIService: AIService {
         ]
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
+        request.timeoutInterval = 20  // never hang the UI on a stuck request
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -78,8 +79,11 @@ class OpenRouterAIService: AIService {
 
     func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> Bool {
         let system = """
-        You are a strict accountability judge. A user was caught off-task and gave an explanation.
-        Decide if the explanation is legitimately necessary for their declared work.
+        You are an accountability judge. The user declared one or more tasks and was flagged as
+        possibly off-task. They explained what they are doing. If the explanation is plausibly
+        part of, supports, or is a reasonable step toward ANY declared task (for example reading
+        docs, researching, or testing for that task), answer JUSTIFIED. Only answer NOT_JUSTIFIED
+        if it is clearly unrelated (e.g. social media, games, entertainment, personal shopping).
         Respond with EXACTLY one word: JUSTIFIED or NOT_JUSTIFIED. No explanation.
         """
         let taskList = tasks.map { "- \($0.task): \($0.context)" }.joined(separator: "\n")

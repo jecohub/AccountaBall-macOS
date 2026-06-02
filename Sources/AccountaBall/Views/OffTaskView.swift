@@ -82,14 +82,17 @@ struct OffTaskView: View {
 
     private func submitExcuse() {
         guard !excuseText.isEmpty, !isEvaluating else { return }
+        let excuse = excuseText
         timeoutTask?.cancel()
         isEvaluating = true
+        NSLog("[AccountaBall] excuse submitted: \(excuse)")
         Task { @MainActor in
             let justified = (try? await aiService.evaluateExcuse(
-                excuse: excuseText,
+                excuse: excuse,
                 tasks: state.activeTasks,
                 screenText: lastScreenText
             )) ?? false
+            NSLog("[AccountaBall] excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
             isEvaluating = false
             withAnimation { stage = justified ? .accepted : .rejected }
             // Hold the verdict on screen briefly, then minimize back to the edge ball.
