@@ -5,8 +5,6 @@ struct RootCoordinatorView: View {
     var engine: AccountabilityEngine
     var aiService: AIService
 
-    @State private var showWhatsUp = false
-
     var body: some View {
         ZStack {
             switch state.appPhase {
@@ -19,28 +17,21 @@ struct RootCoordinatorView: View {
                     .transition(.opacity)
 
             case .session:
+                // Tapping the edge ball opens the progress panel (the widget is
+                // too small to host a centered overlay).
                 SessionBallView(
-                    onTap: { withAnimation { showWhatsUp = true } },
+                    onTap: { withAnimation { state.appPhase = .progress } },
                     onOffTaskDismiss: {}
                 )
                 .transition(.opacity)
-                .overlay {
-                    if showWhatsUp {
-                        WhatsUpView(onDismiss: { withAnimation { showWhatsUp = false } })
-                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    }
-                }
 
             case .offTask:
-                SessionBallView(onTap: {}, onOffTaskDismiss: {})
-                    .overlay(alignment: .trailing) {
-                        OffTaskView(
-                            engine: engine,
-                            aiService: aiService,
-                            lastScreenText: engine.lastScreenText
-                        )
-                        .transition(.opacity)
-                    }
+                OffTaskView(
+                    engine: engine,
+                    aiService: aiService,
+                    lastScreenText: engine.lastScreenText
+                )
+                .transition(.opacity)
 
             case .progress:
                 AccountaProgressView(onBack: { withAnimation { state.appPhase = .session } })

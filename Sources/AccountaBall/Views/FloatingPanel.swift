@@ -29,22 +29,32 @@ class FloatingPanel: NSPanel {
     }
 
     func resize(for phase: AppPhase) {
-        let size: NSSize
         switch phase {
-        case .idle, .welcome:        size = NSSize(width: 400, height: 320)
-        case .setup:                 size = NSSize(width: 520, height: 440)
-        case .session, .offTask:     size = NSSize(width: 0, height: 0)  // transparent overlay
-        case .progress:              size = NSSize(width: 480, height: 420)
-        case .complete:              size = NSSize(width: 600, height: 500)
+        case .idle, .welcome:
+            setContentSize(NSSize(width: 400, height: 320)); center()
+        case .setup:
+            setContentSize(NSSize(width: 520, height: 440)); center()
+        case .session:
+            // Small widget peeking at the right edge — does NOT cover the screen,
+            // so the rest of the desktop stays clickable.
+            anchorRightEdge(size: NSSize(width: 130, height: 170))
+        case .offTask:
+            // Larger edge panel to fit the angry ball + excuse input.
+            anchorRightEdge(size: NSSize(width: 360, height: 360))
+        case .progress:
+            setContentSize(NSSize(width: 480, height: 420)); center()
+        case .complete:
+            setContentSize(NSSize(width: 600, height: 500)); center()
         }
-        if phase == .session || phase == .offTask {
-            // Full screen transparent overlay for edge widget
-            if let screen = NSScreen.main {
-                setFrame(screen.frame, display: true, animate: true)
-            }
-        } else {
-            setContentSize(size)
-            center()
-        }
+    }
+
+    /// Pin the panel flush against the right edge of the visible screen, vertically centered.
+    private func anchorRightEdge(size: NSSize) {
+        setContentSize(size)
+        guard let screen = NSScreen.main else { return }
+        let vf = screen.visibleFrame
+        let x = vf.maxX - frame.width
+        let y = vf.midY - frame.height / 2
+        setFrameOrigin(NSPoint(x: x, y: y))
     }
 }
