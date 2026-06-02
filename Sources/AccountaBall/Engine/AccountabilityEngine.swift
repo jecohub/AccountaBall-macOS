@@ -45,6 +45,7 @@ class AccountabilityEngine {
     }
 
     func resumeAfterExcuse() {
+        dbg("resumeAfterExcuse -> session")
         suspicionCount = 0
         state.ballState = .onTask
         state.appPhase = .session
@@ -55,7 +56,10 @@ class AccountabilityEngine {
         // user's excuse (or the 2-minute timeout) decides what happens next.
         // Otherwise the loop could flip back to .session and dismiss the prompt
         // before the user answers.
-        guard state.appPhase != .offTask else { return }
+        guard state.appPhase != .offTask else {
+            dbg("processResult ignored while offTask (result=\(result))")
+            return
+        }
 
         switch result {
         case .onTask(let index):
@@ -69,7 +73,9 @@ class AccountabilityEngine {
         case .offTask:
             suspicionCount += 1
             state.activeTaskIndex = nil
+            dbg("offTask result (suspicion=\(suspicionCount))")
             if suspicionCount >= 2 {
+                dbg("ENTER offTask phase")
                 state.ballState = .offTask
                 state.appPhase = .offTask
                 notificationService.sendOffTaskNudge(task: state.activeTasks.first?.task ?? "")

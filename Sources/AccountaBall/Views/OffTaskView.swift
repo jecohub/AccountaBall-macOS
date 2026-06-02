@@ -72,31 +72,43 @@ struct OffTaskView: View {
 
     /// (Re)start the 2-minute response window. Runs fresh every time the prompt appears.
     private func startWindow() {
+        dbg("offtask prompt appeared (activeTasks=\(state.activeTasks.count), screenTextLen=\(lastScreenText.count))")
         timeoutTask?.cancel()
         timeoutTask = Task { @MainActor in
             try? await Task.sleep(for: responseWindow)
             guard state.appPhase == .offTask else { return }
+            dbg("offtask 2-min timeout fired -> resume")
             engine.resumeAfterExcuse()
         }
     }
 
     private func submitExcuse() {
-        guard !excuseText.isEmpty, !isEvaluating else { return }
+        guard !excuseText.isEmpty, !isEvaluating else {
+            dbg("submit ignored (empty=\(excuseText.isEmpty), evaluating=\(isEvaluating))")
+            return
+        }
         let excuse = excuseText
         timeoutTask?.cancel()
         isEvaluating = true
-        NSLog("[AccountaBall] excuse submitted: \(excuse)")
+        dbg("excuse submitted: \(excuse)")
         Task { @MainActor in
-            let justified = (try? await aiService.evaluateExcuse(
-                excuse: excuse,
-                tasks: state.activeTasks,
-                screenText: lastScreenText
-            )) ?? false
-            NSLog("[AccountaBall] excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
+            var justified = false
+            do {
+                justified = try await aiService.evaluateExcuse(
+                    excuse: excuse,
+                    tasks: state.activeTasks,
+                    screenText: lastScreenText
+                )
+                dbg("excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
+            } catch {
+                dbg("excuse evaluation ERROR: \(error)")
+            }
             isEvaluating = false
             withAnimation { stage = justified ? .accepted : .rejected }
+            dbg("verdict shown (stage=\(justified ? "accepted" : "rejected")), holding 2s")
             // Hold the verdict on screen briefly, then minimize back to the edge ball.
             try? await Task.sleep(for: .seconds(2))
+            dbg("resume after verdict")
             engine.resumeAfterExcuse()
         }
     }
