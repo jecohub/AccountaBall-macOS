@@ -7,6 +7,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     var engine: AccountabilityEngine?
     let notificationService = NotificationService()
 
+    @MainActor
     public func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
@@ -21,16 +22,17 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             model: model
         )
 
-        Task { @MainActor in
-            self.engine = AccountabilityEngine(
-                state: self.state,
-                captureService: captureService,
-                ocrService: ocrService,
-                aiService: aiService,
-                notificationService: self.notificationService
-            )
-        }
+        // Initialize engine synchronously so it's ready for the SwiftUI hierarchy.
+        let eng = AccountabilityEngine(
+            state: state,
+            captureService: captureService,
+            ocrService: ocrService,
+            aiService: aiService,
+            notificationService: notificationService
+        )
+        self.engine = eng
 
+        // Watch isCapturing → start/stop the capture loop.
         Task { @MainActor in
             var lastCapturing = false
             while true {
@@ -47,6 +49,19 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Watch phase changes → resize the panel.
+        Task { @MainActor in
+            var lastPhase: AppPhase = .idle
+            while true {
+                let phase = self.state.appPhase
+                if phase != lastPhase {
+                    lastPhase = phase
+                    self.panel?.resize(for: phase)
+                }
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+        }
+
         Task {
             let captureCheck = ScreenCaptureService()
             _ = await captureCheck.requestPermission()
@@ -55,9 +70,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = FloatingPanel()
         panel.title = "AccountaBall"
         panel.contentView = NSHostingView(
-            rootView: ContentView().environmentObject(state)
+            rootView: RootCoordinatorView(engine: eng, aiService: aiService)
+                .environmentObject(state)
         )
-        panel.positionNearTopRight()
+        panel.resize(for: .welcome)
+        panel.center()
         panel.orderFront(nil)
         self.panel = panel
     }

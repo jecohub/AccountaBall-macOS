@@ -27,4 +27,24 @@ class FloatingPanel: NSPanel {
         let y = screen.visibleFrame.maxY - frame.height - 20
         setFrameOrigin(NSPoint(x: x, y: y))
     }
+
+    func resize(for phase: AppPhase) {
+        let size: NSSize
+        switch phase {
+        case .idle, .welcome:        size = NSSize(width: 400, height: 320)
+        case .setup:                 size = NSSize(width: 520, height: 440)
+        case .session, .offTask:     size = NSSize(width: 0, height: 0)  // transparent overlay
+        case .progress:              size = NSSize(width: 480, height: 420)
+        case .complete:              size = NSSize(width: 600, height: 500)
+        }
+        if phase == .session || phase == .offTask {
+            // Full screen transparent overlay for edge widget
+            if let screen = NSScreen.main {
+                setFrame(screen.frame, display: true, animate: true)
+            }
+        } else {
+            setContentSize(size)
+            center()
+        }
+    }
 }
