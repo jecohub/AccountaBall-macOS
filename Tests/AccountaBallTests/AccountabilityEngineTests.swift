@@ -12,7 +12,8 @@ func runAccountabilityEngineTests() {
 
     func make() -> (AppState, AccountabilityEngine) {
         let s = AppState()
-        s.submitTask("write the proposal")
+        s.tasks = [TaskItem(task: "write the proposal", context: "work")]
+        s.startSession()
         let e = AccountabilityEngine(
             state: s,
             captureService: capture,
@@ -41,8 +42,8 @@ func runAccountabilityEngineTests() {
 
         (state, engine) = make()
         engine.processAIResult(.done)
-        expect(state.ballState == .idle, "done flips to idle via completeTask")
-        expect(state.sessionLog.count == 1, "done logs the session")
+        expect(state.ballState == .idle, "done flips to idle via completeTaskAt")
+        expect(state.appPhase == .complete, "done sets phase to complete")
 
         (state, engine) = make()
         engine.processAIResult(.offTask)

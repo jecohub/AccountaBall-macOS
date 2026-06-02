@@ -5,6 +5,7 @@ DispatchQueue.main.async {
     runBallStateTests()
     runTaskSessionTests()
     runAppStateTests()
+    runAppStateV2Tests()
     runAccountabilityEngineTests()
     runOCRServiceTests()
     runClaudeAIServiceTests()

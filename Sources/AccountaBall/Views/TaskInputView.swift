@@ -31,7 +31,10 @@ struct TaskInputView: View {
     }
 
     private func submit() {
-        state.submitTask(inputText)
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        state.tasks = [TaskItem(task: trimmed, context: "")]
+        state.startSession()
         inputText = ""
     }
 }

@@ -61,7 +61,12 @@ class AccountabilityEngine {
             }
         case .done:
             stop()
-            state.completeTask()
+            if let idx = state.tasks.firstIndex(where: { !$0.isComplete }) {
+                state.completeTaskAt(index: idx)
+            } else {
+                state.endSession()
+                state.appPhase = .complete
+            }
         case .idle:
             break
         }
