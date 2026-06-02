@@ -10,6 +10,8 @@ func runAppStateV2Tests() {
         expect(s.activeTaskIndex == nil, "no active task initially")
         expect(s.sessionStartTime == nil, "no session start initially")
         expect(s.isCapturing == false, "not capturing initially")
+        expect(s.ballState == .idle, "ballState starts as idle")
+        expect(s.appPhase == .idle, "appPhase starts as idle")
 
         // activeTasks excludes completed
         let s2 = AppState()

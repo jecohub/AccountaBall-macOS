@@ -3,7 +3,7 @@ import Combine
 
 private let tasksKey = "accountaball.tasks.v2"
 
-class AppState: ObservableObject {
+final class AppState: ObservableObject {
     @Published var tasks: [TaskItem] = []
     @Published var appPhase: AppPhase = .idle
     @Published var activeTaskIndex: Int? = nil
@@ -30,7 +30,7 @@ class AppState: ObservableObject {
     }
 
     func completeTaskAt(index: Int) {
-        guard index < tasks.count else { return }
+        guard index >= 0 && index < tasks.count else { return }
         tasks[index].isComplete = true
         if allTasksComplete {
             endSession()
