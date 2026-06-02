@@ -8,6 +8,7 @@ DispatchQueue.main.async {
     runAccountabilityEngineTests()
     runOCRServiceTests()
     runClaudeAIServiceTests()
+    runAppPhaseTests()
     reportAndExit()
 }
 RunLoop.main.run()
