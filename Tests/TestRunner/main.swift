@@ -9,6 +9,7 @@ DispatchQueue.main.async {
     runOCRServiceTests()
     runClaudeAIServiceTests()
     runAppPhaseTests()
+    runTaskItemTests()
     reportAndExit()
 }
 RunLoop.main.run()
