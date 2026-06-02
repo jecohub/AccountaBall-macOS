@@ -85,6 +85,9 @@ class OpenRouterAIService: AIService {
         let taskList = tasks.map { "- \($0.task): \($0.context)" }.joined(separator: "\n")
         let user = "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)\n\nUser explanation:\n\(excuse)"
         let raw = try await sendMessage(system: system, user: user, maxTokens: 10)
-        return raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "JUSTIFIED"
+        let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        // "NOT_JUSTIFIED" / "NOT JUSTIFIED" also contains "JUSTIFIED", so reject those first.
+        if cleaned.contains("NOT") { return false }
+        return cleaned.contains("JUSTIFIED")
     }
 }

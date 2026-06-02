@@ -51,6 +51,12 @@ class AccountabilityEngine {
     }
 
     func processResult(_ result: MultiTaskResult) {
+        // While the off-task prompt is showing, ignore capture results — the
+        // user's excuse (or the 2-minute timeout) decides what happens next.
+        // Otherwise the loop could flip back to .session and dismiss the prompt
+        // before the user answers.
+        guard state.appPhase != .offTask else { return }
+
         switch result {
         case .onTask(let index):
             suspicionCount = 0
@@ -58,10 +64,6 @@ class AccountabilityEngine {
             state.ballState = .onTask
             if state.tasks.indices.contains(index) {
                 state.tasks[index].timeOnTask += 5  // 5s per capture cycle
-            }
-            // Return to session if we were in offTask
-            if state.appPhase == .offTask {
-                state.appPhase = .session
             }
 
         case .offTask:

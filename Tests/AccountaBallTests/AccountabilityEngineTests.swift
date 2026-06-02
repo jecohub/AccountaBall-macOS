@@ -70,6 +70,16 @@ func runAccountabilityEngineTests() {
         (state, engine) = make()
         engine.processResult(.offTask)
         engine.processResult(.offTask)
+        expect(state.appPhase == .offTask, "two offTask enters offTask phase")
+        // Capture results must be ignored while the excuse prompt is up, so the
+        // prompt isn't dismissed before the user answers.
+        engine.processResult(.onTask(index: 0))
+        expect(state.appPhase == .offTask, "onTask is ignored while awaiting excuse")
+        expect(state.activeTaskIndex == nil, "onTask does not set active task while offTask")
+
+        (state, engine) = make()
+        engine.processResult(.offTask)
+        engine.processResult(.offTask)
         expect(state.appPhase == .offTask, "confirmed offTask phase")
         engine.resumeAfterExcuse()
         expect(state.ballState == .onTask, "resumeAfterExcuse restores onTask ball")
