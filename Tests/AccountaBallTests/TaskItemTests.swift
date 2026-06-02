@@ -15,8 +15,10 @@ func runTaskItemTests() {
             expect(decoded.task == item.task, "codable roundtrip preserves task")
             expect(decoded.id == item.id, "codable roundtrip preserves id")
             expect(decoded.isComplete == false, "codable roundtrip preserves isComplete")
+            expect(decoded.context == item.context, "codable roundtrip preserves context")
+            expect(decoded.timeOnTask == item.timeOnTask, "codable roundtrip preserves timeOnTask")
         } else {
-            expect(false, "codable roundtrip succeeded")
+            expect(false, "codable roundtrip failed — encode/decode error")
         }
 
         // Empty item
