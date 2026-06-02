@@ -9,6 +9,7 @@ class AccountabilityEngine {
     private let notificationService: NotificationService
     private var captureTask: Task<Void, Never>?
     private var suspicionCount: Int = 0
+    private(set) var lastScreenText: String = ""
 
     init(
         state: AppState,
@@ -25,18 +26,15 @@ class AccountabilityEngine {
     }
 
     func start() {
-        captureTask = captureService.startLoop(
-            interval: 5,
-            panelTitle: "AccountaBall"
-        ) { [weak self] image in
+        captureTask = captureService.startLoop(interval: 5, panelTitle: "AccountaBall") { [weak self] image in
             guard let self else { return }
             let text = await self.ocrService.extractText(from: image)
             guard !text.isEmpty else { return }
-            let result = (try? await self.aiService.classify(
-                task: self.state.currentTask,
-                screenText: text
-            )) ?? .onTask
-            await self.processAIResult(result)
+            self.lastScreenText = text
+            let activeTasks = self.state.activeTasks
+            guard !activeTasks.isEmpty else { return }
+            let result = (try? await self.aiService.classifyMulti(tasks: activeTasks, screenText: text)) ?? .offTask
+            self.processResult(result)
         }
     }
 
@@ -46,29 +44,38 @@ class AccountabilityEngine {
         suspicionCount = 0
     }
 
-    func processAIResult(_ result: BallState) {
+    func resumeAfterExcuse() {
+        suspicionCount = 0
+        state.ballState = .onTask
+        state.appPhase = .session
+    }
+
+    func processResult(_ result: MultiTaskResult) {
         switch result {
-        case .onTask:
+        case .onTask(let index):
             suspicionCount = 0
-            if state.ballState == .offTask {
-                state.ballState = .onTask
+            state.activeTaskIndex = index
+            state.ballState = .onTask
+            if state.tasks.indices.contains(index) {
+                state.tasks[index].timeOnTask += 5  // 5s per capture cycle
             }
+            // Return to session if we were in offTask
+            if state.appPhase == .offTask {
+                state.appPhase = .session
+            }
+
         case .offTask:
             suspicionCount += 1
+            state.activeTaskIndex = nil
             if suspicionCount >= 2 {
                 state.ballState = .offTask
-                notificationService.sendOffTaskNudge(task: state.currentTask)
+                state.appPhase = .offTask
+                notificationService.sendOffTaskNudge(task: state.activeTasks.first?.task ?? "")
             }
-        case .done:
+
+        case .done(let index):
             stop()
-            if let idx = state.tasks.firstIndex(where: { !$0.isComplete }) {
-                state.completeTaskAt(index: idx)
-            } else {
-                state.endSession()
-                state.appPhase = .complete
-            }
-        case .idle:
-            break
+            state.completeTaskAt(index: index)
         }
     }
 }
