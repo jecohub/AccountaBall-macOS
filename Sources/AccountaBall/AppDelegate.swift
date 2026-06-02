@@ -12,10 +12,14 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task { await notificationService.requestPermission() }
 
-        let apiKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] ?? ""
+        let env = ProcessInfo.processInfo.environment
         let captureService = ScreenCaptureService()
         let ocrService = OCRService()
-        let aiService = ClaudeAIService(apiKey: apiKey)
+        let model = env["OPENROUTER_MODEL"] ?? "anthropic/claude-haiku-4-5"
+        let aiService: AIService = OpenRouterAIService(
+            apiKey: "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",
+            model: model
+        )
 
         Task { @MainActor in
             self.engine = AccountabilityEngine(

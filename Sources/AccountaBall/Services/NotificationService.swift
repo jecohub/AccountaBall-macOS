@@ -3,14 +3,14 @@ import UserNotifications
 
 class NotificationService {
     func requestPermission() async {
-        guard NSApp != nil else { return }
+        guard Bundle.main.bundleIdentifier != nil else { return }
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(
             options: [.alert, .sound]
         )
     }
 
     func sendOffTaskNudge(task: String) {
-        guard NSApp != nil else { return }
+        guard Bundle.main.bundleIdentifier != nil else { return }
         let content = UNMutableNotificationContent()
         content.title = "Hey, get back on track!"
         content.body = "You said you'd \(task.prefix(60))…"
