@@ -17,6 +17,7 @@ DispatchQueue.main.async {
     runDurationDeltaTests()
     runExcuseVerdictTests()
     runTimelineCoalescerTests()
+    runPersistenceTests()
     reportAndExit()
 }
 RunLoop.main.run()
