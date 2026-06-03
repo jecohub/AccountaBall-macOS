@@ -115,10 +115,10 @@ func runEngineSessionTests() {
 
         engine.record(taskIndex: 0, label: "x")
         engine.record(taskIndex: 0, label: "y")
+        let entryLabels = Set(engine.currentSession?.entries.map { $0.label } ?? [])
         expect(engine.currentSession?.entries.count == 2, "two timeline entries recorded")
-        expect(engine.currentSession?.entries.first?.label == "x", "first label stored")
-        expect(engine.currentSession?.entries.last?.label == "y", "last label stored")
-        expect(engine.currentSession?.entries.first?.taskIndex == 0, "task index stored on entry")
+        expect(entryLabels == ["x", "y"], "both labels stored (order-independent — SwiftData @Relationship arrays don't guarantee insertion order)")
+        expect(engine.currentSession?.entries.allSatisfy { $0.taskIndex == 0 } == true, "task index stored on every entry")
 
         engine.endSession()
         expect(engine.currentSession == nil, "currentSession is nil after endSession")
