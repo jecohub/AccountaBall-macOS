@@ -1,3 +1,5 @@
+import Foundation
+
 var _failures = 0
 var _total = 0
 
