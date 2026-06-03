@@ -6,13 +6,15 @@ struct TaskItem: Codable, Identifiable, Equatable {
     var context: String
     var isComplete: Bool
     var timeOnTask: TimeInterval
+    var knowledgeRef: UUID?
 
-    init(task: String = "", context: String = "", isComplete: Bool = false, timeOnTask: TimeInterval = 0) {
+    init(task: String = "", context: String = "", isComplete: Bool = false, timeOnTask: TimeInterval = 0, knowledgeRef: UUID? = nil) {
         self.id = UUID()
         self.task = task
         self.context = context
         self.isComplete = isComplete
         self.timeOnTask = timeOnTask
+        self.knowledgeRef = knowledgeRef
     }
 
     var isFilledIn: Bool {

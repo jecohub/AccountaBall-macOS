@@ -41,6 +41,7 @@ final class JustificationEvent {  // one per off-task interrogation
 @Model
 final class KnowledgeTask {        // persists across sessions
     @Attribute(.unique) var normalizedTitle: String
+    var id: UUID = UUID()           // stable id for cross-session links
     var originalTitles: [String] = []     // every phrasing the user has used
     var lastCompletedAt: Date
     var timesCompleted: Int = 0
