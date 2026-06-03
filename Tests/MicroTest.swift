@@ -19,6 +19,16 @@ func suite(_ name: String, _ body: () -> Void) {
     body()
 }
 
+// Async suite: the body is awaited directly. The whole test run is driven by a
+// single top-level `Task { @MainActor in ... }` + `RunLoop.main.run()` in the
+// test runner's main.swift, so there is no manual semaphore/run-loop pumping
+// here — that re-entrant pumping is exactly what used to deadlock the runner.
+@MainActor
+func suite(_ name: String, _ body: @MainActor () async -> Void) async {
+    print("\n\(name)")
+    await body()
+}
+
 func reportAndExit() -> Never {
     print("\n────────────────────────────────")
     if _failures == 0 {
