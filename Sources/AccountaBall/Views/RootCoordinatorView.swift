@@ -19,6 +19,7 @@ struct RootCoordinatorView: View {
             case .session:
                 // Tapping the edge ball opens the "What's up?" card.
                 SessionBallView(
+                    engine: engine,
                     onTap: { withAnimation { state.appPhase = .whatsUp } },
                     onOffTaskDismiss: {}
                 )

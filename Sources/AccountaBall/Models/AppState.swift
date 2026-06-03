@@ -15,6 +15,13 @@ final class AppState: ObservableObject {
     /// The UI layer in Task 17 will surface this in a banner.
     @Published var setupHint: String? = nil
 
+    // v3 — UI bridges (Task 18)
+    /// AI recap per finished task, keyed by task title. Written by the engine on
+    /// completion; read by the recap UI (progress panel + completion summary).
+    @Published var recaps: [String: TaskRecap] = [:]
+    /// A revived allowance awaiting one-time user confirmation on reuse.
+    @Published var pendingAllowanceConfirm: AllowanceConfirm? = nil
+
     var activeTasks: [TaskItem] { tasks.filter { !$0.isComplete } }
     var allTasksComplete: Bool { !tasks.isEmpty && tasks.allSatisfy { $0.isComplete } }
 
@@ -63,4 +70,12 @@ final class AppState: ObservableObject {
 
     // Legacy compat — used by AccountabilityEngine (replaced in Task 6)
     var currentTask: String { activeTasks.first?.task ?? "" }
+}
+
+/// A one-time prompt asking the user to confirm a revived allowance from a
+/// previously-completed task that was brought back into this session.
+struct AllowanceConfirm: Identifiable, Equatable {
+    let id = UUID()
+    let taskTitle: String
+    let rule: String
 }

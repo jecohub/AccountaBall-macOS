@@ -57,25 +57,31 @@ struct AccountaProgressView: View {
 
                 ForEach(state.tasks.indices, id: \.self) { i in
                     let task = state.tasks[i]
-                    HStack {
-                        Text(task.task)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .strikethrough(task.isComplete)
-                            .foregroundStyle(task.isComplete ? .white.opacity(0.3) : .white)
+                    VStack(spacing: 6) {
+                        HStack {
+                            Text(task.task)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .strikethrough(task.isComplete)
+                                .foregroundStyle(task.isComplete ? .white.opacity(0.3) : .white)
 
-                        Text(formatTime(Int(task.timeOnTask)))
-                            .frame(width: 80, alignment: .trailing)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.7))
+                            Text(formatTime(Int(task.timeOnTask)))
+                                .frame(width: 80, alignment: .trailing)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.7))
 
-                        Button {
-                            state.completeTaskAt(index: i)
-                        } label: {
-                            Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(task.isComplete ? .orange : .white.opacity(0.4))
+                            Button {
+                                state.completeTaskAt(index: i)
+                            } label: {
+                                Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(task.isComplete ? .orange : .white.opacity(0.4))
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: 44)
                         }
-                        .buttonStyle(.plain)
-                        .frame(width: 44)
+
+                        if task.isComplete, let recap = state.recaps[task.task] {
+                            RecapCard(title: task.task, recap: recap)
+                        }
                     }
                 }
 

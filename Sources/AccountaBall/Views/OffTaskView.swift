@@ -104,22 +104,22 @@ struct OffTaskView: View {
         isEvaluating = true
         dbg("excuse submitted: \(excuse)")
         Task { @MainActor in
-            var justified = false
-            do {
-                let verdict = try await aiService.evaluateExcuse(
-                    excuse: excuse,
-                    tasks: state.activeTasks,
-                    screenText: lastScreenText
-                )
-                justified = verdict.justified
-                dbg("excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
-            } catch {
-                dbg("excuse evaluation ERROR: \(error)")
-            }
+            // Route through the engine so the JustificationEvent is persisted and,
+            // when justified, an Allowance + KnowledgeTask link is created.
+            let justified = await engine.handleExcuse(
+                excuse,
+                tasks: state.activeTasks,
+                screenText: lastScreenText
+            )
+            dbg("excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
             isEvaluating = false
-            withAnimation { stage = justified ? .accepted : .rejected }
-            dbg("verdict shown (stage=\(justified ? "accepted" : "rejected")) — waiting for user to dismiss")
-            // Stays on screen until the user taps "Got it".
+            // On justified, the engine already resumed (phase -> .session) and this
+            // view is dismissed. On not-justified, show the angry verdict; the user
+            // dismisses it with "Got it".
+            if !justified {
+                withAnimation { stage = .rejected }
+                dbg("verdict shown (rejected) — waiting for user to dismiss")
+            }
         }
     }
 }

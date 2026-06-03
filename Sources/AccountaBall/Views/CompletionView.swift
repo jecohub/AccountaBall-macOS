@@ -60,6 +60,19 @@ struct CompletionView: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
 
+                        if !state.recaps.isEmpty {
+                            ScrollView {
+                                VStack(spacing: 10) {
+                                    ForEach(state.tasks, id: \.task) { task in
+                                        if let recap = state.recaps[task.task] {
+                                            RecapCard(title: task.task, recap: recap)
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 220)
+                        }
+
                         VStack(spacing: 12) {
                             Button("Start a new session") { onRestart() }
                                 .buttonStyle(PrimaryButtonStyle())
@@ -165,5 +178,57 @@ struct StatRow: View {
             Spacer()
             Text(value).foregroundStyle(.white).fontWeight(.semibold)
         }
+    }
+}
+
+/// Per-task recap: total time, AI summary, steps, and (if any) a faster/slower
+/// comparison vs. the last time this task was completed. Used by the completion
+/// summary and the progress panel.
+struct RecapCard: View {
+    let title: String
+    let recap: TaskRecap
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Text(formatDuration(recap.duration))
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            if !recap.summary.isEmpty {
+                Text(recap.summary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !recap.steps.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(recap.steps, id: \.self) { step in
+                        Text("• \(step)")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.65))
+                    }
+                }
+            }
+            if let comparison = recap.comparison, !comparison.isEmpty {
+                Text(comparison)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.orange.opacity(0.9))
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds)
+        let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
     }
 }

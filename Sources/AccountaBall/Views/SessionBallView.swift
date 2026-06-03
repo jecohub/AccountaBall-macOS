@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SessionBallView: View {
     @EnvironmentObject var state: AppState
+    var engine: AccountabilityEngine
     var onTap: () -> Void
     var onOffTaskDismiss: () -> Void
 
@@ -10,6 +11,17 @@ struct SessionBallView: View {
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        ZStack {
+            // One-time allowance confirm-on-reuse prompt takes over the ball.
+            if let confirm = state.pendingAllowanceConfirm {
+                allowanceConfirmCard(confirm)
+            } else {
+                ballContent
+            }
+        }
+    }
+
+    private var ballContent: some View {
         ZStack {
             BasketballView(size: 80)
 
@@ -45,6 +57,34 @@ struct SessionBallView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func allowanceConfirmCard(_ confirm: AllowanceConfirm) -> some View {
+        VStack(spacing: 12) {
+            BasketballView(size: 56, showFace: .happy)
+            Text("Still counts toward “\(confirm.taskTitle)”?")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+            Text(confirm.rule)
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 10) {
+                Button("Yes") { engine.confirmPendingAllowance() }
+                    .buttonStyle(PrimaryButtonStyle())
+                Button("No") { engine.rejectPendingAllowance() }
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.9))
+        .transition(.opacity)
     }
 
     private func formatTime(_ seconds: Int) -> String {

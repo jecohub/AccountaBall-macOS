@@ -16,6 +16,8 @@ class AccountabilityEngine {
     var modelContext: ModelContext?
     var currentSession: WorkSession?
     private(set) var lastActivityLabel: String = ""
+    // Revived allowances awaiting one-time user confirmation on reuse (Task 18).
+    private var pendingConfirms: [(title: String, kt: KnowledgeTask, allowance: Allowance)] = []
 
     init(
         state: AppState,
@@ -127,6 +129,47 @@ class AccountabilityEngine {
             kt.allowances[i].needsConfirmation = true
         }
         try? modelContext?.save()
+        // Queue each revived allowance for one-time confirmation, then surface
+        // the first prompt (the rest follow as the user answers).
+        let title = state.tasks[taskIndex].task
+        for allowance in kt.allowances where allowance.needsConfirmation {
+            pendingConfirms.append((title: title, kt: kt, allowance: allowance))
+        }
+        surfaceNextAllowanceConfirm()
+    }
+
+    // MARK: - v3 allowance confirm-on-reuse (Task 18)
+
+    /// Publish the next queued allowance to the UI (or clear when the queue empties).
+    @MainActor
+    private func surfaceNextAllowanceConfirm() {
+        if let next = pendingConfirms.first {
+            state.pendingAllowanceConfirm = AllowanceConfirm(taskTitle: next.title, rule: next.allowance.rule)
+        } else {
+            state.pendingAllowanceConfirm = nil
+        }
+    }
+
+    /// User confirmed the revived allowance still applies: clear its flag so it
+    /// counts again, then advance to the next pending prompt.
+    @MainActor
+    func confirmPendingAllowance() {
+        guard let front = pendingConfirms.first else { return }
+        front.allowance.needsConfirmation = false
+        try? modelContext?.save()
+        pendingConfirms.removeFirst()
+        surfaceNextAllowanceConfirm()
+    }
+
+    /// User rejected the revived allowance: delete it, then advance.
+    @MainActor
+    func rejectPendingAllowance() {
+        guard let front = pendingConfirms.first else { return }
+        front.kt.allowances.removeAll { $0 === front.allowance }
+        modelContext?.delete(front.allowance)
+        try? modelContext?.save()
+        pendingConfirms.removeFirst()
+        surfaceNextAllowanceConfirm()
     }
 
     func processResult(_ result: MultiTaskResult) {
@@ -244,10 +287,11 @@ class AccountabilityEngine {
         }
 
         // 5. Append TaskCompletion
+        let storedSteps = recap.steps.isEmpty ? steps : recap.steps
         let countOffTaskFinal = session.justifications.filter { !$0.justified }.count
         let completion = TaskCompletion(
             completedAt: .now, duration: duration, summary: recap.summary,
-            steps: recap.steps.isEmpty ? steps : recap.steps,
+            steps: storedSteps,
             offTaskCount: countOffTaskFinal
         )
         ctx.insert(completion)
@@ -255,18 +299,28 @@ class AccountabilityEngine {
         kt.lastCompletedAt = .now
         kt.timesCompleted += 1
         try? ctx.save()
+
+        // Publish the recap for the UI (Task 18 recap surfaces in progress + completion).
+        state.recaps[taskTitle] = TaskRecap(
+            summary: recap.summary, steps: storedSteps,
+            duration: duration, comparison: recap.comparison
+        )
     }
 
     // MARK: - v3 excuse resolution
 
+    /// Returns whether the excuse was judged justified (so the UI can show the
+    /// right verdict stage). On a justified verdict the engine also resumes the
+    /// session (sets phase back to `.session`).
     @MainActor
-    func handleExcuse(_ text: String, tasks: [TaskItem], screenText: String) async {
+    @discardableResult
+    func handleExcuse(_ text: String, tasks: [TaskItem], screenText: String) async -> Bool {
         let verdict: ExcuseVerdict
         do {
             verdict = try await aiService.evaluateExcuse(excuse: text, tasks: tasks, screenText: screenText)
         } catch {
             dbg("evaluateExcuse failed: \(error)")
-            return
+            return false
         }
 
         // Always log the interrogation
@@ -307,6 +361,7 @@ class AccountabilityEngine {
             resumeAfterExcuse()
         }
         // If not justified, keep the existing angry state (no extra action here).
+        return verdict.justified
     }
 
     @MainActor
