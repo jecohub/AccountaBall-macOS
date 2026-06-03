@@ -1,11 +1,13 @@
 import AppKit
 import SwiftUI
+import SwiftData
 
 public class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: FloatingPanel?
     let state = AppState()
     var engine: AccountabilityEngine?
     let notificationService = NotificationService()
+    var modelContainer: ModelContainer?
 
     @MainActor
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -16,11 +18,39 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let env = ProcessInfo.processInfo.environment
         let captureService = ScreenCaptureService()
         let ocrService = OCRService()
-        let model = env["OPENROUTER_MODEL"] ?? "anthropic/claude-haiku-4-5"
-        let aiService: AIService = OpenRouterAIService(
-            apiKey: "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",
-            model: model
-        )
+
+        // AI provider factory — env-driven. See design Section 7.
+        // No auto-fallback: if the requested provider is misconfigured, we set
+        // `setupHint` and construct the local Ollama service so the app at
+        // least launches and the user sees the hint. The view in Task 17 will
+        // surface `setupHint` to the user.
+        let provider = env["AI_PROVIDER"] ?? "ollama"
+        let aiService: AIService = {
+            switch provider {
+            case "openrouter":
+                guard let key = env["OPENROUTER_API_KEY"] else {
+                    dbg("FATAL: OPENROUTER_API_KEY not set")
+                    state.setupHint = "Set OPENROUTER_API_KEY, or run with AI_PROVIDER=ollama"
+                    return OllamaAIService()
+                }
+                let model = env["OPENROUTER_MODEL"] ?? "anthropic/claude-haiku-4-5"
+                return OpenRouterAIService(apiKey: key, model: model)
+            default:
+                let host = env["OLLAMA_HOST"] ?? "http://localhost:11434"
+                let model = env["OLLAMA_MODEL"] ?? "qwen2.5:7b"
+                return OllamaAIService(host: host, model: model)
+            }
+        }()
+
+        // v3 — SwiftData container for WorkSession / TimelineEntry persistence.
+        // Hard-fail on disk failure so we don't silently lose the session log.
+        let container: ModelContainer
+        do {
+            container = try AccountaBallStore.makeContainer()
+        } catch {
+            fatalError("AccountaBall: failed to build ModelContainer: \(error)")
+        }
+        self.modelContainer = container
 
         // Initialize engine synchronously so it's ready for the SwiftUI hierarchy.
         let eng = AccountabilityEngine(
@@ -30,6 +60,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             aiService: aiService,
             notificationService: notificationService
         )
+        eng.modelContext = container.mainContext
         self.engine = eng
 
         // Watch isCapturing → start/stop the capture loop.

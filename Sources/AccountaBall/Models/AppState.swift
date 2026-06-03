@@ -11,6 +11,9 @@ final class AppState: ObservableObject {
     @Published var isCapturing: Bool = false
     @Published var ballState: BallState = .idle
     @Published var sessionLog: [TaskSession] = []
+    /// Optional diagnostic/setup hint shown to the user (e.g. missing env vars).
+    /// The UI layer in Task 17 will surface this in a banner.
+    @Published var setupHint: String? = nil
 
     var activeTasks: [TaskItem] { tasks.filter { !$0.isComplete } }
     var allTasksComplete: Bool { !tasks.isEmpty && tasks.allSatisfy { $0.isComplete } }
