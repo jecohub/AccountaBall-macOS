@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TaskSetupView: View {
     @EnvironmentObject var state: AppState
+    var engine: AccountabilityEngine
     @State private var showValidationError = false
 
     private let maxRows = 5
@@ -37,6 +38,7 @@ struct TaskSetupView: View {
                 VStack(spacing: 8) {
                     ForEach(0..<maxRows, id: \.self) { i in
                         TaskRowView(
+                            engine: engine,
                             index: i,
                             isUnlocked: isRowUnlocked(i),
                             showError: showValidationError
@@ -85,9 +87,15 @@ struct TaskSetupView: View {
 
 struct TaskRowView: View {
     @EnvironmentObject var state: AppState
+    var engine: AccountabilityEngine
     let index: Int
     let isUnlocked: Bool
     let showError: Bool
+
+    // v3 — cross-session match (Task 17)
+    @State private var match: KnowledgeTask?
+    @State private var matchDismissed = false
+    @State private var showHint = false
 
     private var task: Binding<String> {
         Binding(
@@ -106,13 +114,93 @@ struct TaskRowView: View {
     private var taskEmpty: Bool { (state.tasks.indices.contains(index) ? state.tasks[index].task : "").isEmpty }
     private var contextEmpty: Bool { (state.tasks.indices.contains(index) ? state.tasks[index].context : "").isEmpty }
 
+    private var taskText: String { state.tasks.indices.contains(index) ? state.tasks[index].task : "" }
+    private var contextText: String { state.tasks.indices.contains(index) ? state.tasks[index].context : "" }
+
+    /// Latest completion steps for the matched task — the "how you did it" hint.
+    private var matchSteps: [String] {
+        match?.completions.sorted { $0.completedAt > $1.completedAt }.first?.steps ?? []
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            RowField(text: task, placeholder: "Task \(index + 1)", showError: showError && isUnlocked && taskEmpty)
-            RowField(text: context, placeholder: "Context", showError: showError && isUnlocked && contextEmpty)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                RowField(text: task, placeholder: "Task \(index + 1)", showError: showError && isUnlocked && taskEmpty)
+                RowField(text: context, placeholder: "Context", showError: showError && isUnlocked && contextEmpty)
+            }
+            if let match { matchCard(match) }
         }
         .opacity(isUnlocked ? 1 : 0.3)
         .disabled(!isUnlocked)
+        // Debounced cross-session lookup: re-runs (and cancels prior) whenever the
+        // task/context text changes; `.task` gives us free cancellation.
+        .task(id: "\(taskText)|\(contextText)") {
+            guard isUnlocked, !taskEmpty, !contextEmpty, !matchDismissed else {
+                match = nil; return
+            }
+            try? await Task.sleep(nanoseconds: 600_000_000)  // 600ms debounce
+            guard !Task.isCancelled else { return }
+            match = await engine.proposeMatch(for: taskText)
+            showHint = false
+        }
+    }
+
+    @ViewBuilder
+    private func matchCard(_ kt: KnowledgeTask) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Looks like “\(kt.originalTitles.last ?? kt.normalizedTitle)” — a task you finished before. Bring back what you learned?")
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                Button("Yes") {
+                    Task {
+                        await engine.linkKnowledgeTask(kt, to: index)
+                        matchDismissed = true
+                        match = nil
+                    }
+                }
+                .buttonStyle(PrimaryButtonStyle())
+
+                Button("No, fresh task") {
+                    matchDismissed = true
+                    match = nil
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.6))
+                .buttonStyle(.plain)
+            }
+
+            if !matchSteps.isEmpty {
+                Button {
+                    withAnimation { showHint.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showHint ? "chevron.down" : "chevron.right")
+                        Text("Here's how you did it last time")
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange.opacity(0.9))
+                }
+                .buttonStyle(.plain)
+
+                if showHint {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(matchSteps, id: \.self) { step in
+                            Text("• \(step)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                    .padding(.leading, 14)
+                    .transition(.opacity)
+                }
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.3), lineWidth: 1))
     }
 }
 

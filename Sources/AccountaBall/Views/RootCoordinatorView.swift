@@ -13,7 +13,7 @@ struct RootCoordinatorView: View {
                     .transition(.opacity)
 
             case .setup:
-                TaskSetupView()
+                TaskSetupView(engine: engine)
                     .transition(.opacity)
 
             case .session:
