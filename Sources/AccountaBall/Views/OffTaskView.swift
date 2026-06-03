@@ -106,11 +106,12 @@ struct OffTaskView: View {
         Task { @MainActor in
             var justified = false
             do {
-                justified = try await aiService.evaluateExcuse(
+                let verdict = try await aiService.evaluateExcuse(
                     excuse: excuse,
                     tasks: state.activeTasks,
                     screenText: lastScreenText
                 )
+                justified = verdict.justified
                 dbg("excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
             } catch {
                 dbg("excuse evaluation ERROR: \(error)")

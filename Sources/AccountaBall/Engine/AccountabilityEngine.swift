@@ -33,7 +33,7 @@ class AccountabilityEngine {
             self.lastScreenText = text
             let activeTasks = self.state.activeTasks
             guard !activeTasks.isEmpty else { return }
-            let result = (try? await self.aiService.classifyMulti(tasks: activeTasks, screenText: text)) ?? .offTask(label: "")
+            let result = (try? await self.aiService.classifyMulti(tasks: activeTasks, screenText: text, allowanceRulesByIndex: [:])) ?? .offTask(label: "")
             self.processResult(result)
         }
     }

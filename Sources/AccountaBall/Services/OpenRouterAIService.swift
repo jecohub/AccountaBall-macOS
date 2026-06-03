@@ -63,7 +63,7 @@ class OpenRouterAIService: AIService {
         return "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)"
     }
 
-    func classifyMulti(tasks: [TaskItem], screenText: String) async throws -> MultiTaskResult {
+    func classifyMulti(tasks: [TaskItem], screenText: String, allowanceRulesByIndex: [Int: [String]]) async throws -> MultiTaskResult {
         let system = """
         You are an accountability assistant monitoring a user's screen.
         The user has declared tasks numbered starting at 0.
@@ -77,7 +77,7 @@ class OpenRouterAIService: AIService {
         return MultiTaskResult.parse(raw)
     }
 
-    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> Bool {
+    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict {
         let system = """
         You are an accountability judge. The user declared one or more tasks and was flagged as
         possibly off-task. They explained what they are doing. If the explanation is plausibly
@@ -89,9 +89,15 @@ class OpenRouterAIService: AIService {
         let taskList = tasks.map { "- \($0.task): \($0.context)" }.joined(separator: "\n")
         let user = "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)\n\nUser explanation:\n\(excuse)"
         let raw = try await sendMessage(system: system, user: user, maxTokens: 10)
-        let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        // "NOT_JUSTIFIED" / "NOT JUSTIFIED" also contains "JUSTIFIED", so reject those first.
-        if cleaned.contains("NOT") { return false }
-        return cleaned.contains("JUSTIFIED")
+        return ExcuseVerdict.parse(raw)
+    }
+
+    func summarizeTask(title: String, context: String, steps: [String], durationSeconds: TimeInterval,
+                       previous: (durationSeconds: TimeInterval, steps: [String], offTaskCount: Int)?) async throws -> TaskRecap {
+        return TaskRecap(summary: "", steps: [], duration: durationSeconds, comparison: nil)
+    }
+
+    func matchTask(query: String, candidates: [(id: String, title: String, summary: String)]) async throws -> (id: String, confident: Bool)? {
+        return nil
     }
 }

@@ -50,7 +50,7 @@ class ClaudeAIService: AIService {
         return Self.parseResponse(text)
     }
 
-    func classifyMulti(tasks: [TaskItem], screenText: String) async throws -> MultiTaskResult {
+    func classifyMulti(tasks: [TaskItem], screenText: String, allowanceRulesByIndex: [Int: [String]]) async throws -> MultiTaskResult {
         let result = try await classify(task: tasks.first?.task ?? "", screenText: screenText)
         switch result {
         case .onTask: return .onTask(index: 0, label: "")
@@ -60,8 +60,17 @@ class ClaudeAIService: AIService {
         }
     }
 
-    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> Bool {
-        return true
+    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict {
+        return ExcuseVerdict(justified: true, taskIndex: nil, rule: "")
+    }
+
+    func summarizeTask(title: String, context: String, steps: [String], durationSeconds: TimeInterval,
+                       previous: (durationSeconds: TimeInterval, steps: [String], offTaskCount: Int)?) async throws -> TaskRecap {
+        return TaskRecap(summary: "", steps: [], duration: durationSeconds, comparison: nil)
+    }
+
+    func matchTask(query: String, candidates: [(id: String, title: String, summary: String)]) async throws -> (id: String, confident: Bool)? {
+        return nil
     }
 
     static func parseResponse(_ raw: String) -> BallState {

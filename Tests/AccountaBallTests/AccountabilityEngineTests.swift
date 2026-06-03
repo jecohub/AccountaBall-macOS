@@ -1,10 +1,13 @@
+import Foundation
 @testable import AccountaBall
 
 private class MultiMockAI: AIService {
     var nextResult: MultiTaskResult = .offTask(label: "")
     func classify(task: String, screenText: String) async throws -> BallState { .onTask }
-    func classifyMulti(tasks: [TaskItem], screenText: String) async throws -> MultiTaskResult { nextResult }
-    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> Bool { true }
+    func classifyMulti(tasks: [TaskItem], screenText: String, allowanceRulesByIndex: [Int: [String]]) async throws -> MultiTaskResult { nextResult }
+    func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict { ExcuseVerdict(justified: true, taskIndex: nil, rule: "") }
+    func summarizeTask(title: String, context: String, steps: [String], durationSeconds: TimeInterval, previous: (durationSeconds: TimeInterval, steps: [String], offTaskCount: Int)?) async throws -> TaskRecap { TaskRecap(summary: "", steps: [], duration: durationSeconds, comparison: nil) }
+    func matchTask(query: String, candidates: [(id: String, title: String, summary: String)]) async throws -> (id: String, confident: Bool)? { nil }
 }
 
 @MainActor
