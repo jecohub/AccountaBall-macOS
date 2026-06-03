@@ -33,7 +33,7 @@ class AccountabilityEngine {
             self.lastScreenText = text
             let activeTasks = self.state.activeTasks
             guard !activeTasks.isEmpty else { return }
-            let result = (try? await self.aiService.classifyMulti(tasks: activeTasks, screenText: text)) ?? .offTask
+            let result = (try? await self.aiService.classifyMulti(tasks: activeTasks, screenText: text)) ?? .offTask(label: "")
             self.processResult(result)
         }
     }
@@ -62,7 +62,7 @@ class AccountabilityEngine {
         }
 
         switch result {
-        case .onTask(let index):
+        case .onTask(let index, _):
             suspicionCount = 0
             state.activeTaskIndex = index
             state.ballState = .onTask
@@ -70,7 +70,7 @@ class AccountabilityEngine {
                 state.tasks[index].timeOnTask += 5  // 5s per capture cycle
             }
 
-        case .offTask:
+        case .offTask(_):
             suspicionCount += 1
             state.activeTaskIndex = nil
             dbg("offTask result (suspicion=\(suspicionCount))")
@@ -81,7 +81,7 @@ class AccountabilityEngine {
                 notificationService.sendOffTaskNudge(task: state.activeTasks.first?.task ?? "")
             }
 
-        case .done(let index):
+        case .done(let index, _):
             stop()
             state.completeTaskAt(index: index)
         }

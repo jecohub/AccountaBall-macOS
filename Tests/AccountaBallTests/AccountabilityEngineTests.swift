@@ -1,7 +1,7 @@
 @testable import AccountaBall
 
 private class MultiMockAI: AIService {
-    var nextResult: MultiTaskResult = .offTask
+    var nextResult: MultiTaskResult = .offTask(label: "")
     func classify(task: String, screenText: String) async throws -> BallState { .onTask }
     func classifyMulti(tasks: [TaskItem], screenText: String) async throws -> MultiTaskResult { nextResult }
     func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> Bool { true }
@@ -26,65 +26,65 @@ func runAccountabilityEngineTests() {
 
     suite("AccountabilityEngineTests") {
         var (state, engine) = make()
-        engine.processResult(.offTask)
+        engine.processResult(.offTask(label: ""))
         expect(state.ballState == .onTask, "single offTask does not flip state")
         expect(state.appPhase == .session, "single offTask does not change phase")
 
         (state, engine) = make()
-        engine.processResult(.offTask)
-        engine.processResult(.offTask)
+        engine.processResult(.offTask(label: ""))
+        engine.processResult(.offTask(label: ""))
         expect(state.ballState == .offTask, "two consecutive offTask flips to offTask")
         expect(state.appPhase == .offTask, "two consecutive offTask sets offTask phase")
 
         (state, engine) = make()
-        engine.processResult(.offTask)
-        engine.processResult(.onTask(index: 0))
-        engine.processResult(.offTask)
+        engine.processResult(.offTask(label: ""))
+        engine.processResult(.onTask(index: 0, label: ""))
+        engine.processResult(.offTask(label: ""))
         expect(state.ballState == .onTask, "onTask in between resets suspicion")
 
         (state, engine) = make()
-        engine.processResult(.onTask(index: 1))
+        engine.processResult(.onTask(index: 1, label: ""))
         expect(state.activeTaskIndex == 1, "onTask sets activeTaskIndex")
         expect(state.ballState == .onTask, "onTask sets ballState to onTask")
 
         (state, engine) = make()
-        engine.processResult(.onTask(index: 0))
+        engine.processResult(.onTask(index: 0, label: ""))
         expect(state.tasks[0].timeOnTask == 5, "onTask accumulates 5s per cycle")
-        engine.processResult(.onTask(index: 0))
+        engine.processResult(.onTask(index: 0, label: ""))
         expect(state.tasks[0].timeOnTask == 10, "second onTask accumulates another 5s")
 
         (state, engine) = make()
-        engine.processResult(.onTask(index: 1))
+        engine.processResult(.onTask(index: 1, label: ""))
         expect(state.tasks[1].timeOnTask == 5, "onTask on task 1 accumulates time on task 1")
         expect(state.tasks[0].timeOnTask == 0, "task 0 not affected")
 
         (state, engine) = make()
-        engine.processResult(.done(index: 0))
+        engine.processResult(.done(index: 0, label: ""))
         expect(state.tasks[0].isComplete == true, "done marks task complete")
 
         (state, engine) = make()
-        engine.processResult(.done(index: 0))
-        engine.processResult(.done(index: 1))
+        engine.processResult(.done(index: 0, label: ""))
+        engine.processResult(.done(index: 1, label: ""))
         expect(state.appPhase == .complete, "all done triggers complete phase")
 
         (state, engine) = make()
-        engine.processResult(.offTask)
-        engine.processResult(.offTask)
+        engine.processResult(.offTask(label: ""))
+        engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .offTask, "two offTask enters offTask phase")
         // Capture results must be ignored while the excuse prompt is up, so the
         // prompt isn't dismissed before the user answers.
-        engine.processResult(.onTask(index: 0))
+        engine.processResult(.onTask(index: 0, label: ""))
         expect(state.appPhase == .offTask, "onTask is ignored while awaiting excuse")
         expect(state.activeTaskIndex == nil, "onTask does not set active task while offTask")
 
         (state, engine) = make()
-        engine.processResult(.offTask)
-        engine.processResult(.offTask)
+        engine.processResult(.offTask(label: ""))
+        engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .offTask, "confirmed offTask phase")
         engine.resumeAfterExcuse()
         expect(state.ballState == .onTask, "resumeAfterExcuse restores onTask ball")
         expect(state.appPhase == .session, "resumeAfterExcuse restores session phase")
-        engine.processResult(.offTask)
+        engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .session, "suspicion reset by resumeAfterExcuse")
     }
 }

@@ -53,10 +53,10 @@ class ClaudeAIService: AIService {
     func classifyMulti(tasks: [TaskItem], screenText: String) async throws -> MultiTaskResult {
         let result = try await classify(task: tasks.first?.task ?? "", screenText: screenText)
         switch result {
-        case .onTask: return .onTask(index: 0)
-        case .offTask: return .offTask
-        case .done:   return .done(index: 0)
-        case .idle:   return .offTask
+        case .onTask: return .onTask(index: 0, label: "")
+        case .offTask: return .offTask(label: "")
+        case .done:   return .done(index: 0, label: "")
+        case .idle:   return .offTask(label: "")
         }
     }
 

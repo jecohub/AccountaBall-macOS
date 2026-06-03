@@ -17,8 +17,8 @@ func runMultiTaskClassificationTests() {
         expect(prompt.contains("Google Docs open"), "prompt includes screen text")
 
         // Parser already tested in MultiTaskResultTests — just verify the round-trip label
-        expect(MultiTaskResult.parse("TASK:0") == .onTask(index: 0), "TASK:0 parses to onTask(0)")
-        expect(MultiTaskResult.parse("OFFTASK") == .offTask, "OFFTASK parses correctly")
-        expect(MultiTaskResult.parse("DONE:1") == .done(index: 1), "DONE:1 parses correctly")
+        expect(MultiTaskResult.parse("TASK:0") == .onTask(index: 0, label: ""), "TASK:0 parses to onTask(0)")
+        expect(MultiTaskResult.parse("OFFTASK") == .offTask(label: ""), "OFFTASK parses correctly")
+        expect(MultiTaskResult.parse("DONE:1") == .done(index: 1, label: ""), "DONE:1 parses correctly")
     }
 }
