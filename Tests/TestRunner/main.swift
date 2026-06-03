@@ -18,6 +18,9 @@ DispatchQueue.main.async {
     runExcuseVerdictTests()
     runTimelineCoalescerTests()
     runPersistenceTests()
+    runSnapshotTests()
+    runOpenRouterPromptTests()
+    runOllamaServiceTests()
     reportAndExit()
 }
 RunLoop.main.run()

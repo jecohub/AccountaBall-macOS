@@ -56,39 +56,36 @@ class OpenRouterAIService: AIService {
 
     // MARK: - Multi-task
 
-    static func buildClassifyPrompt(tasks: [TaskItem], screenText: String) -> String {
+    static func buildClassifyPrompt(tasks: [TaskItem], screenText: String,
+                                    allowanceRulesByIndex: [Int: [String]] = [:]) -> String {
         let taskList = tasks.enumerated().map { i, t in
             "[\(i)] \(t.task) — \(t.context)"
         }.joined(separator: "\n")
-        return "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)"
+        var prompt = "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)"
+        if !allowanceRulesByIndex.isEmpty {
+            let lines = allowanceRulesByIndex.keys.sorted().flatMap { idx -> [String] in
+                (allowanceRulesByIndex[idx] ?? []).map { rule in "Task \(idx): \(rule)" }
+            }
+            prompt += "\n\nAllowances — treat these as ON-TASK for the named task:\n" + lines.map { "- \($0)" }.joined(separator: "\n")
+        }
+        return prompt
     }
 
     func classifyMulti(tasks: [TaskItem], screenText: String, allowanceRulesByIndex: [Int: [String]]) async throws -> MultiTaskResult {
-        let system = """
-        You are an accountability assistant monitoring a user's screen.
-        The user has declared tasks numbered starting at 0.
-        Respond with EXACTLY one token:
-        - TASK:N (where N is the 0-based index of the task they appear to be working on)
-        - OFFTASK (not working on any declared task)
-        - DONE:N (task N appears completed)
-        When uncertain, respond OFFTASK. No explanation.
-        """
-        let raw = try await sendMessage(system: system, user: Self.buildClassifyPrompt(tasks: tasks, screenText: screenText), maxTokens: 10)
+        let system = AIPrompts.classifySystem
+        let raw = try await sendMessage(
+            system: system,
+            user: Self.buildClassifyPrompt(tasks: tasks, screenText: screenText, allowanceRulesByIndex: allowanceRulesByIndex),
+            maxTokens: 40
+        )
         return MultiTaskResult.parse(raw)
     }
 
     func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict {
-        let system = """
-        You are an accountability judge. The user declared one or more tasks and was flagged as
-        possibly off-task. They explained what they are doing. If the explanation is plausibly
-        part of, supports, or is a reasonable step toward ANY declared task (for example reading
-        docs, researching, or testing for that task), answer JUSTIFIED. Only answer NOT_JUSTIFIED
-        if it is clearly unrelated (e.g. social media, games, entertainment, personal shopping).
-        Respond with EXACTLY one word: JUSTIFIED or NOT_JUSTIFIED. No explanation.
-        """
+        let system = AIPrompts.excuseSystem
         let taskList = tasks.map { "- \($0.task): \($0.context)" }.joined(separator: "\n")
         let user = "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)\n\nUser explanation:\n\(excuse)"
-        let raw = try await sendMessage(system: system, user: user, maxTokens: 10)
+        let raw = try await sendMessage(system: system, user: user, maxTokens: 60)
         return ExcuseVerdict.parse(raw)
     }
 
