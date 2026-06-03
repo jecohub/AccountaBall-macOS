@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 @testable import AccountaBall
 
 private class MultiMockAI: AIService {
@@ -89,5 +90,80 @@ func runAccountabilityEngineTests() {
         expect(state.appPhase == .session, "resumeAfterExcuse restores session phase")
         engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .session, "suspicion reset by resumeAfterExcuse")
+    }
+}
+
+@MainActor
+func runEngineSessionTests() {
+    suite("EngineSessionTests") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+        let s = AppState()
+        s.tasks = [TaskItem(task: "test", context: "")]
+        s.startSession()
+        let engine = AccountabilityEngine(state: s, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+        engine.modelContext = ctx
+
+        engine.beginSession(tasks: [TaskItem(task: "test", context: "")])
+        expect(engine.currentSession != nil, "session is active after beginSession")
+        expect(engine.currentSession?.taskTitles == ["test"], "task titles snapshotted")
+
+        engine.record(taskIndex: 0, label: "x")
+        engine.record(taskIndex: 0, label: "y")
+        expect(engine.currentSession?.entries.count == 2, "two timeline entries recorded")
+        expect(engine.currentSession?.entries.first?.label == "x", "first label stored")
+        expect(engine.currentSession?.entries.last?.label == "y", "last label stored")
+        expect(engine.currentSession?.entries.first?.taskIndex == 0, "task index stored on entry")
+
+        engine.endSession()
+        expect(engine.currentSession == nil, "currentSession is nil after endSession")
+        expect(engine.currentSession == nil, "session ended cleanly")
+    }
+
+    suite("EngineSessionTests_labelCapture") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+        let s = AppState()
+        s.tasks = [TaskItem(task: "test", context: "")]
+        s.startSession()
+        let engine = AccountabilityEngine(state: s, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+        engine.modelContext = ctx
+        engine.beginSession(tasks: s.tasks)
+
+        engine.processResult(.onTask(index: 0, label: "writing"))
+        expect(engine.lastActivityLabel == "writing", "onTask label captured")
+
+        engine.processResult(.offTask(label: "twitter"))
+        expect(engine.lastActivityLabel == "twitter", "offTask label captured")
+        expect(engine.currentSession?.entries.contains(where: { $0.label == "twitter" }) == true, "offTask entry recorded with label")
+    }
+
+    suite("EngineSessionTests_noContextIsNoop") {
+        // Engine built without a modelContext (test stub path) should not crash
+        // when beginSession/record/endSession are called.
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+        let s = AppState()
+        s.tasks = [TaskItem(task: "t", context: "")]
+        s.startSession()
+        let engine = AccountabilityEngine(state: s, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+        // modelContext intentionally nil
+        engine.beginSession(tasks: s.tasks)
+        expect(engine.currentSession == nil, "beginSession is a no-op without context")
+        engine.record(taskIndex: 0, label: "x")
+        expect(true, "record is a no-op without session")
+        engine.endSession()
+        expect(true, "endSession is a no-op without session")
     }
 }
