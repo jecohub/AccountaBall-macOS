@@ -63,6 +63,13 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         eng.modelContext = container.mainContext
         self.engine = eng
 
+        // Startup AI reachability probe — if the provider is unreachable at
+        // launch, show the AI-unavailable card immediately rather than waiting
+        // for the first failed classify cycle (~5s into a session).
+        Task { @MainActor in
+            if await aiService.healthCheck() == false { eng.enterAIUnavailable() }
+        }
+
         // Watch isCapturing → start/stop the capture loop.
         Task { @MainActor in
             var lastCapturing = false
@@ -80,14 +87,27 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Watch phase changes → resize the panel.
+        // Watch phase changes → resize the panel, and build the end-of-session
+        // recap once when we reach `.complete` (covers both the AI `.done` path
+        // and the manual progress-panel checkoff). The flag prevents a
+        // double-build while we linger on the completion screen; it resets when
+        // we leave `.complete` so the next session finalizes too.
         Task { @MainActor in
             var lastPhase: AppPhase = .idle
+            var didFinalize = false
             while true {
                 let phase = self.state.appPhase
                 if phase != lastPhase {
                     lastPhase = phase
                     self.panel?.resize(for: phase)
+                    if phase == .complete {
+                        if !didFinalize {
+                            didFinalize = true
+                            await self.engine?.finalizeSessionRecap()
+                        }
+                    } else {
+                        didFinalize = false
+                    }
                 }
                 try? await Task.sleep(for: .milliseconds(200))
             }
