@@ -73,6 +73,10 @@ class ClaudeAIService: AIService {
         return nil
     }
 
+    func healthCheck() async -> Bool { true }
+
+    func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] { [] }
+
     static func parseResponse(_ raw: String) -> BallState {
         let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         switch cleaned {

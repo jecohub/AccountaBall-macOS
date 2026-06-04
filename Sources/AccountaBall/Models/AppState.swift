@@ -14,6 +14,10 @@ final class AppState: ObservableObject {
     /// Optional diagnostic/setup hint shown to the user (e.g. missing env vars).
     /// The UI layer in Task 17 will surface this in a banner.
     @Published var setupHint: String? = nil
+    /// Set when the AI provider is unreachable; shown on the pause card.
+    @Published var aiUnavailableHint: String? = nil
+    /// The end-of-session breakdown: timeline ranges + per-task commentary.
+    @Published var sessionRecap: SessionRecap? = nil
 
     // v3 — UI bridges (Task 18)
     /// AI recap per finished task, keyed by task title. Written by the engine on

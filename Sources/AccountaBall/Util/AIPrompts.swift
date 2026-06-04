@@ -1,5 +1,48 @@
 import Foundation
 
+// MARK: - summarizeSession types (imported via SessionRecap.swift)
+
+/// System prompt for summarizeSession — the model returns structured JSON.
+extension AIPrompts {
+    static let sessionSystem = """
+    You are an accountability assistant. The user completed a focus session with one or more tasks.
+    For each task, write a one-sentence comment describing performance: did they finish faster/slower
+    than before? What was notable? Optionally suggest one short improvement tip if there is any.
+    Respond with JSON: {"tasks": [{"title": "<exact task title>", "comment": "<one sentence>", "suggestion": "<tip or empty string>"}, ...]}
+    Output JSON only, no prose.
+    """
+
+    /// Build the user-side prompt for the AI's summarizeSession call. The caller
+    /// computes the local comparison authoritatively; the AI writes the prose.
+    static func buildSessionPrompt(perTask: [PerTaskSessionInput]) -> String {
+        perTask.enumerated().map { i, t in
+            let lastStr = t.lastDurationSeconds.map { "\(Int(($0/60).rounded()))m" } ?? "N/A"
+            let avgStr = t.averageSeconds.map { "\(Int(($0/60).rounded()))m" } ?? "N/A"
+            return """
+            Task \(i): "\(t.title)"
+            - This run: \(Int((t.durationSeconds/60).rounded()))m, \(t.offTaskCount) off-task moments
+            - Steps: \(t.steps.isEmpty ? "none" : t.steps.joined(separator: ", "))
+            - Last run: \(lastStr), Average: \(avgStr)
+            - Local comparison: \(t.localComparison)
+            """
+        }.joined(separator: "\n\n")
+    }
+
+    /// Parse the AI's JSON response into `[PerTaskComment]`. Returns empty array
+    /// on any parse failure.
+    static func parseSessionComments(_ json: String, titles: [String]) -> [PerTaskComment] {
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let arr = obj["tasks"] as? [[String: Any]] else { return [] }
+        return arr.compactMap { d in
+            guard let t = d["title"] as? String else { return nil }
+            let c = (d["comment"] as? String) ?? ""
+            let sug = (d["suggestion"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            return PerTaskComment(taskTitle: t, comment: c, suggestion: sug)
+        }
+    }
+}
+
 /// Shared prompt strings used by AIService implementations.
 /// Centralised so the local (Ollama) and remote (OpenRouter) providers
 /// stay in lockstep on what we ask the model to do.

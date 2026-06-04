@@ -50,6 +50,8 @@ class FloatingPanel: NSPanel {
             }
         case .progress:
             setContentSize(NSSize(width: 480, height: 420)); center()
+        case .aiUnavailable:
+            anchorRightEdge(size: NSSize(width: 300, height: 300))
         case .complete:
             setContentSize(NSSize(width: 600, height: 500)); center()
         }

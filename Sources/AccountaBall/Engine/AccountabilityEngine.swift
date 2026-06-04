@@ -11,6 +11,12 @@ class AccountabilityEngine {
     private var captureTask: Task<Void, Never>?
     private var suspicionCount: Int = 0
     private(set) var lastScreenText: String = ""
+    private var healthPollTask: Task<Void, Never>?
+
+    /// Injectable clock for deterministic settle-window tests.
+    var now: () -> Date = { Date() }
+    let settleWindow: TimeInterval = 15
+    private var settleUntil: Date = .distantPast
 
     // v3 — persistence
     var modelContext: ModelContext?
@@ -41,14 +47,25 @@ class AccountabilityEngine {
             self.lastScreenText = text
             let activeTasks = self.state.activeTasks
             guard !activeTasks.isEmpty else { return }
-            let result = (try? await self.aiService.classifyMulti(tasks: activeTasks, screenText: text, allowanceRulesByIndex: [:])) ?? .offTask(label: "")
+            let result: MultiTaskResult?
+            do {
+                result = try await self.aiService.classifyMulti(
+                    tasks: activeTasks,
+                    screenText: text,
+                    allowanceRulesByIndex: self.allowanceRulesByIndex(for: activeTasks)
+                )
+            } catch {
+                dbg("classifyMulti failed (skipping cycle): \(error)")
+                self.enterAIUnavailable(reason: error)
+                result = nil
+            }
             DebugLog.dbgBlock("CYCLE", [
                 "ocr=\(DebugLog.truncate(text, max: 200))",
                 "prompt: tasks=\(activeTasks.count) allowances=0",
-                "parsed=\(result)",
+                "parsed=\(result.map { "\($0)" } ?? "nil")",
                 "state: suspicion=\(self.suspicionCount) activeTaskIndex=\(String(describing: self.state.activeTaskIndex))"
             ])
-            self.processResult(result)
+            self.processCycle(result)
         }
     }
 
@@ -63,9 +80,67 @@ class AccountabilityEngine {
         suspicionCount = 0
         state.ballState = .onTask
         state.appPhase = .session
+        resetSettleWindow()
+    }
+
+    // MARK: - AI unavailable
+
+    @MainActor
+    func enterAIUnavailable(reason: Error? = nil) {
+        guard state.appPhase != .aiUnavailable else { return }
+        dbg("AI unavailable: \(reason.map { "\($0)" } ?? "health check failed")")
+        stop()
+        state.aiUnavailableHint = aiHint()
+        state.ballState = .idle
+        state.appPhase = .aiUnavailable
+        startHealthPolling()
+    }
+
+    @MainActor
+    private func aiHint() -> String {
+        "Can't reach the AI. If using Ollama, run it and pull the model (e.g. `ollama run qwen2.5:7b`); or set AI_PROVIDER/OPENROUTER_API_KEY."
+    }
+
+    @MainActor
+    private func startHealthPolling() {
+        healthPollTask?.cancel()
+        healthPollTask = Task { @MainActor in
+            while !Task.isCancelled {
+                if await aiService.healthCheck() {
+                    recoverFromAIUnavailable()
+                    return
+                }
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
+    }
+
+    @MainActor
+    func recoverFromAIUnavailable() {
+        guard state.appPhase == .aiUnavailable else { return }
+        healthPollTask?.cancel(); healthPollTask = nil
+        state.aiUnavailableHint = nil
+        dbg("AI recovered -> resuming session")
+        state.appPhase = .session
+        state.ballState = .onTask
+        state.isCapturing = true
+        resetSettleWindow()
+    }
+
+    /// Process one classification *outcome*. `result == nil` means the AI call
+    /// failed — skip the cycle entirely (no suspicion bump, never off-task).
+    @MainActor
+    func processCycle(_ result: MultiTaskResult?) {
+        guard let result else { return }
+        processResult(result)
     }
 
     // MARK: - v3 session lifecycle
+
+    private var inSettleWindow: Bool { now() < settleUntil }
+
+    @MainActor
+    func resetSettleWindow() { settleUntil = now().addingTimeInterval(settleWindow) }
 
     @MainActor
     func beginSession(tasks: [TaskItem] = []) {
@@ -75,6 +150,7 @@ class AccountabilityEngine {
         modelContext?.insert(session)
         try? modelContext?.save()
         currentSession = session
+        resetSettleWindow()
     }
 
     @MainActor
@@ -199,7 +275,7 @@ class AccountabilityEngine {
             suspicionCount += 1
             state.activeTaskIndex = nil
             dbg("offTask result (suspicion=\(suspicionCount))")
-            if suspicionCount >= 2 {
+            if suspicionCount >= 2, !inSettleWindow, state.appPhase == .session {
                 dbg("ENTER offTask phase")
                 state.ballState = .offTask
                 state.appPhase = .offTask
@@ -216,6 +292,67 @@ class AccountabilityEngine {
                 await self?.summarizeCompletion(taskIndex: index)
             }
         }
+    }
+
+    // MARK: - v3 session recap (end-of-session breakdown)
+
+    /// Build the end-of-session breakdown: mechanical timeline ranges + one AI
+    /// call for per-task commentary. Comparisons are computed locally. Safe to
+    /// call once all tasks are complete. Never throws — AI failure degrades to
+    /// timeline + local comparison strings.
+    @MainActor
+    func finalizeSessionRecap() async {
+        guard let session = currentSession, let ctx = modelContext else { return }
+
+        let ranges = TimelineCoalescer.ranges(
+            sessionStart: session.startedAt,
+            entries: session.entries.map { (at: $0.at, taskIndex: $0.taskIndex, label: $0.label) }
+        )
+
+        var inputs: [PerTaskSessionInput] = []
+        for task in state.tasks {
+            let dur = task.timeOnTask
+            let normalized = TaskMatcher.normalize(task.task)
+            let kt = (try? ctx.fetch(FetchDescriptor<KnowledgeTask>(predicate: #Predicate { $0.normalizedTitle == normalized })))?.first
+            let prior = (kt?.completions ?? []).filter { $0.completedAt < session.startedAt }
+            let lastDur = prior.sorted { $0.completedAt > $1.completedAt }.first?.duration
+            let avg: TimeInterval? = prior.isEmpty ? nil : prior.map { $0.duration }.reduce(0, +) / Double(prior.count)
+            let comparison = Self.comparisonString(current: dur, last: lastDur, average: avg)
+            let offCount = session.justifications.filter { !$0.justified }.count
+            let taskIdx = state.tasks.firstIndex(where: { $0.task == task.task }) ?? -1
+            let steps = taskIdx >= 0 ? TimelineCoalescer.labelsForTask(
+                index: taskIdx,
+                reads: session.entries.sorted { $0.at < $1.at }.map { ($0.taskIndex, $0.label) }
+            ) : []
+            inputs.append(PerTaskSessionInput(
+                title: task.task, durationSeconds: dur,
+                lastDurationSeconds: lastDur, averageSeconds: avg,
+                offTaskCount: offCount, steps: steps,
+                localComparison: comparison
+            ))
+        }
+
+        var comments: [PerTaskComment] = []
+        do {
+            comments = try await aiService.summarizeSession(perTask: inputs)
+        } catch {
+            dbg("summarizeSession failed: \(error)")
+        }
+        if comments.isEmpty {
+            comments = inputs.map { PerTaskComment(taskTitle: $0.title, comment: $0.localComparison, suggestion: nil) }
+        }
+        state.sessionRecap = SessionRecap(ranges: ranges, perTask: comments)
+    }
+
+    static func comparisonString(current: TimeInterval, last: TimeInterval?, average: TimeInterval?) -> String {
+        func mins(_ t: TimeInterval) -> String { "\(Int((t/60).rounded()))m" }
+        guard let last else { return "First time finishing this — \(mins(current))." }
+        let d = DurationDelta.compare(current: current, previous: last)
+        var s = d.fasterThanPrevious
+            ? "Faster than last time (\(mins(last)) → \(mins(current)))."
+            : "Slower than last time (\(mins(last)) → \(mins(current)))."
+        if let average { s += " Avg \(mins(average))." }
+        return s
     }
 
     // MARK: - v3 completion summary

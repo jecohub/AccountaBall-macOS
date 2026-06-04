@@ -24,6 +24,7 @@ func runAppPhaseTests() {
             case .offTask:  return "offTask"
             case .progress: return "progress"
             case .complete: return "complete"
+            case .aiUnavailable: return "aiUnavailable"
             }
         }()
         expect(true, "exhaustive switch covers all AppPhase cases")

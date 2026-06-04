@@ -14,4 +14,31 @@ enum TimelineCoalescer {
     static func cycleCountForTask(index: Int, reads: [(Int?, String)]) -> Int {
         reads.filter { $0.0 == index }.count
     }
+
+    /// Coalesce contiguous entries with the same `(taskIndex, label)` into
+    /// `TimelineRange`s. The end of the last range extends one `cycleSeconds`
+    /// past its final entry's timestamp. Entries are sorted chronologically
+    /// first (the caller provides them in `(Date, ...)` format).
+    static func ranges(sessionStart: Date,
+                       entries: [(at: Date, taskIndex: Int?, label: String)],
+                       cycleSeconds: TimeInterval = 5) -> [TimelineRange] {
+        let sorted = entries.sorted { $0.at < $1.at }
+        var out: [TimelineRange] = []
+        var i = 0
+        while i < sorted.count {
+            let startOff = sorted[i].at.timeIntervalSince(sessionStart)
+            let idx = sorted[i].taskIndex, label = sorted[i].label
+            var j = i
+            while j + 1 < sorted.count && sorted[j+1].taskIndex == idx && sorted[j+1].label == label {
+                j += 1
+            }
+            // End = next group's start, or last entry + one cycle.
+            let endOff: TimeInterval = (j + 1 < sorted.count)
+                ? sorted[j+1].at.timeIntervalSince(sessionStart)
+                : sorted[j].at.timeIntervalSince(sessionStart) + cycleSeconds
+            out.append(TimelineRange(startOffset: startOff, endOffset: endOff, label: label, taskIndex: idx))
+            i = j + 1
+        }
+        return out
+    }
 }

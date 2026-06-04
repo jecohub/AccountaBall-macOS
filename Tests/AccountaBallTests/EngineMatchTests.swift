@@ -25,6 +25,8 @@ func runEngineMatchTests() async {
                 // Prove cheap path wins by throwing — if this is called, the test fails
                 throw NSError(domain: "test", code: 0, userInfo: [NSLocalizedDescriptionKey: "AI match should NOT be called when cheap path hits"])
             }
+            func healthCheck() async -> Bool { true }
+            func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] { [] }
         }
         let s = AppState()
         let engine = AccountabilityEngine(state: s, captureService: ScreenCaptureService(), ocrService: OCRService(), aiService: NoMatchAI(), notificationService: NotificationService())

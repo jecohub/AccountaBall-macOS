@@ -157,6 +157,19 @@ class OpenRouterAIService: AIService {
 
     // MARK: - Static helpers
 
+    func healthCheck() async -> Bool { !apiKey.isEmpty }
+
+    func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] {
+        let prompt = AIPrompts.buildSessionPrompt(perTask: perTask)
+        let raw = try await sendMessage(
+            system: AIPrompts.sessionSystem,
+            user: prompt,
+            maxTokens: 600,
+            responseFormatJSON: true
+        )
+        return AIPrompts.parseSessionComments(raw, titles: perTask.map { $0.title })
+    }
+
     static func parseMatch(_ raw: String) -> (id: String, confident: Bool)? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.uppercased().hasPrefix("MATCH:") else { return nil }

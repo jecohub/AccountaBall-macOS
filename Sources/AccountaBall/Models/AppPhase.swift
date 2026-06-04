@@ -7,4 +7,5 @@ enum AppPhase: Equatable {
     case offTask
     case progress
     case complete
+    case aiUnavailable
 }

@@ -148,6 +148,37 @@ final class OllamaAIService: AIService {
         return nil
     }
 
+    // MARK: - AIService health check
+
+    func healthCheck() async -> Bool {
+        guard let url = URL(string: "\(host)/api/tags") else { return false }
+        do {
+            let (data, resp) = try await session.data(from: url)
+            guard (resp as? HTTPURLResponse)?.statusCode == 200 else { return false }
+            let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let names = (obj?["models"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+            let base = model.split(separator: ":").first.map(String.init) ?? model
+            return names.contains(model) || names.contains { $0.hasPrefix(base + ":") || $0 == base }
+        } catch {
+            return false
+        }
+    }
+
+    func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] {
+        let prompt = AIPrompts.buildSessionPrompt(perTask: perTask)
+        let schema: [String: Any] = [
+            "type": "object",
+            "properties": [
+                "tasks": ["type": "array", "items": ["type": "object",
+                    "properties": ["title": ["type": "string"], "comment": ["type": "string"], "suggestion": ["type": "string"]],
+                    "required": ["title", "comment"]]]
+            ],
+            "required": ["tasks"]
+        ]
+        let raw: String = try await send(system: AIPrompts.sessionSystem, user: prompt, schema: schema)
+        return AIPrompts.parseSessionComments(raw, titles: perTask.map { $0.title })
+    }
+
     // MARK: - private
 
     private func send(system: String, user: String, schema: [String: Any]) async throws -> String {

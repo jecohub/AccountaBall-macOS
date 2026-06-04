@@ -27,17 +27,20 @@ func runAllTests() async {
     runDurationDeltaTests()
     runExcuseVerdictTests()
     runTimelineCoalescerTests()
+    runTimelineRangeTests()
     runPersistenceTests()
     runEngineSessionTests()
     runSnapshotTests()
     runOpenRouterPromptTests()
     runOllamaServiceTests()
+    runSummarizeSessionParseTests()
     runDebugLogTests()
 
     // Async v3 engine suites — awaited directly.
     await runEngineAllowanceTests()
     await runEngineCompletionTests()
     await runEngineMatchTests()
+    await runEngineSessionRecapTests()
 
     reportAndExit()
 }

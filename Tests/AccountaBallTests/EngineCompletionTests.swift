@@ -14,6 +14,8 @@ private class FixedRecapAI: AIService {
         return TaskRecap(summary: "did stuff", steps: ["a", "b"], duration: durationSeconds, comparison: nil)
     }
     func matchTask(query: String, candidates: [(id: String, title: String, summary: String)]) async throws -> (id: String, confident: Bool)? { nil }
+    func healthCheck() async -> Bool { true }
+    func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] { [] }
 }
 
 @MainActor

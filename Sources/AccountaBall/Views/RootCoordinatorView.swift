@@ -40,6 +40,10 @@ struct RootCoordinatorView: View {
                 )
                 .transition(.opacity)
 
+            case .aiUnavailable:
+                AIUnavailableView()
+                    .transition(.opacity)
+
             case .progress:
                 AccountaProgressView(onBack: { withAnimation { state.appPhase = .session } })
                     .transition(.opacity)

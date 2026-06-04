@@ -60,17 +60,37 @@ struct CompletionView: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                        if !state.recaps.isEmpty {
+                        // v3.1 — session timeline + per-task commentary
+                        if let recap = state.sessionRecap {
                             ScrollView {
-                                VStack(spacing: 10) {
-                                    ForEach(state.tasks, id: \.task) { task in
-                                        if let recap = state.recaps[task.task] {
-                                            RecapCard(title: task.task, recap: recap)
+                                VStack(alignment: .leading, spacing: 12) {
+                                    if !recap.ranges.isEmpty {
+                                        Text("Timeline").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
+                                        ForEach(Array(recap.ranges.enumerated()), id: \.offset) { _, r in
+                                            HStack(alignment: .top, spacing: 8) {
+                                                Text(String(format: "%02d:%02d", Int(r.startOffset)/60, Int(r.startOffset)%60) + "–" + String(format: "%02d:%02d", Int(r.endOffset)/60, Int(r.endOffset)%60))
+                                                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.6))
+                                                    .frame(width: 96, alignment: .leading)
+                                                Text(r.label + (r.taskIndex == nil ? "  (off-task)" : ""))
+                                                    .font(.system(size: 12)).foregroundStyle(r.taskIndex == nil ? .orange.opacity(0.85) : .white.opacity(0.85))
+                                            }
+                                        }
+                                    }
+                                    if !recap.perTask.isEmpty {
+                                        Text("Per task").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8)).padding(.top, 6)
+                                        ForEach(Array(recap.perTask.enumerated()), id: \.offset) { _, c in
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(c.taskTitle).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                                                Text(c.comment).font(.system(size: 12)).foregroundStyle(.white.opacity(0.8)).fixedSize(horizontal: false, vertical: true)
+                                                if let s = c.suggestion { Text("💡 " + s).font(.system(size: 11)).foregroundStyle(.orange.opacity(0.9)) }
+                                            }
+                                            .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                                            .background(Color.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 10))
                                         }
                                     }
                                 }
                             }
-                            .frame(maxHeight: 220)
+                            .frame(maxHeight: 260)
                         }
 
                         VStack(spacing: 12) {
@@ -134,6 +154,10 @@ struct CompletionView: View {
         }
     }
 }
+
+    private func mmss(_ t: TimeInterval) -> String {
+        let s = Int(t); return String(format: "%02d:%02d", s/60, s%60)
+    }
 
 struct ConfettiPiece: Identifiable {
     let id = UUID()
@@ -231,4 +255,6 @@ struct RecapCard: View {
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
     }
+
+    fileprivate static func mmss(_ t: TimeInterval) -> String { let s = Int(t); return String(format: "%02d:%02d", s/60, s%60) }
 }
