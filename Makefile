@@ -9,11 +9,14 @@ LIB_SRCS  := $(shell find Sources/AccountaBall -name "*.swift" | sort)
 TEST_SRCS  := $(shell find Tests/AccountaBallTests -name "*.swift" | sort) \
                Tests/MicroTest.swift
 RUNNER    := Tests/TestRunner/main.swift
+INTEG_SRCS := $(shell find Tests/IntegrationTests -name "*.swift" | sort) \
+               Tests/MicroTest.swift
+INTEG_RUNNER := Tests/IntegrationRunner/main.swift
 APP_SRCS  := Sources/AccountaBallApp/main.swift
 
 SWIFT_FLAGS := -target $(TARGET) -sdk $(SDK) -load-plugin-library $(SWIFTDATA_PLUGIN)
 
-.PHONY: test build run clean
+.PHONY: test test-integration build run clean
 
 # ── Library (all app logic) ────────────────────────────────────────────────────
 $(BUILD)/AccountaBall.o: $(LIB_SRCS)
@@ -37,6 +40,19 @@ $(BUILD)/run-tests: $(BUILD)/AccountaBall.o $(TEST_SRCS) $(RUNNER)
 
 test: $(BUILD)/run-tests
 	$(BUILD)/run-tests
+
+# ── Live integration runner (opt-in; hits a running Ollama) ─────────────────────
+# NOT part of `make test`: slow + network-dependent + non-deterministic. Skips
+# cleanly if Ollama isn't reachable. See Tests/IntegrationTests/.
+$(BUILD)/run-integration: $(BUILD)/AccountaBall.o $(INTEG_SRCS) $(INTEG_RUNNER)
+	$(SWIFT) $(SWIFT_FLAGS) \
+	  $(BUILD)/AccountaBall.o \
+	  $(INTEG_SRCS) $(INTEG_RUNNER) \
+	  -I $(BUILD) \
+	  -o $@
+
+test-integration: $(BUILD)/run-integration
+	$(BUILD)/run-integration
 
 # ── App binary ─────────────────────────────────────────────────────────────────
 $(BUILD)/AccountaBallApp: $(LIB_SRCS) $(APP_SRCS)
