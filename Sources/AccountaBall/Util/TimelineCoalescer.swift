@@ -21,7 +21,7 @@ enum TimelineCoalescer {
     /// first (the caller provides them in `(Date, ...)` format).
     static func ranges(sessionStart: Date,
                        entries: [(at: Date, taskIndex: Int?, label: String)],
-                       cycleSeconds: TimeInterval = 5) -> [TimelineRange] {
+                       cycleSeconds: TimeInterval = AppConstants.cycleSeconds) -> [TimelineRange] {
         let sorted = entries.sorted { $0.at < $1.at }
         var out: [TimelineRange] = []
         var i = 0

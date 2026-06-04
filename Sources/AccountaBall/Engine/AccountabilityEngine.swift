@@ -40,7 +40,7 @@ class AccountabilityEngine {
     }
 
     func start() {
-        captureTask = captureService.startLoop(interval: 5, panelTitle: "AccountaBall") { [weak self] image in
+        captureTask = captureService.startLoop(interval: AppConstants.cycleSeconds, panelTitle: "AccountaBall") { [weak self] image in
             guard let self else { return }
             let text = await self.ocrService.extractText(from: image)
             guard !text.isEmpty else { return }
@@ -90,6 +90,9 @@ class AccountabilityEngine {
         guard state.appPhase != .aiUnavailable else { return }
         dbg("AI unavailable: \(reason.map { "\($0)" } ?? "health check failed")")
         stop()
+        // Drop the capturing flag so recovery's `isCapturing = true` is a real
+        // false→true edge for the AppDelegate watcher, which re-calls start().
+        state.isCapturing = false
         state.aiUnavailableHint = aiHint()
         state.ballState = .idle
         state.appPhase = .aiUnavailable
@@ -106,11 +109,16 @@ class AccountabilityEngine {
         healthPollTask?.cancel()
         healthPollTask = Task { @MainActor in
             while !Task.isCancelled {
+                // Sleep BEFORE the first check so recovery waits at least one
+                // interval. Otherwise an optimistic healthCheck() (e.g.
+                // OpenRouter's `!apiKey.isEmpty`) recovers instantly, the next
+                // classify fails, and we thrash the card every cycle.
+                try? await Task.sleep(for: .seconds(AppConstants.cycleSeconds))
+                if Task.isCancelled { return }
                 if await aiService.healthCheck() {
                     recoverFromAIUnavailable()
                     return
                 }
-                try? await Task.sleep(for: .seconds(5))
             }
         }
     }
@@ -266,7 +274,7 @@ class AccountabilityEngine {
             state.activeTaskIndex = index
             state.ballState = .onTask
             if state.tasks.indices.contains(index) {
-                state.tasks[index].timeOnTask += 5  // 5s per capture cycle
+                state.tasks[index].timeOnTask += AppConstants.cycleSeconds  // one capture cycle
             }
 
         case .offTask(let label):
@@ -309,8 +317,13 @@ class AccountabilityEngine {
             entries: session.entries.map { (at: $0.at, taskIndex: $0.taskIndex, label: $0.label) }
         )
 
+        // Session-wide off-task count. True per-task attribution is out of
+        // scope, so every task input carries the same total.
+        let offCount = session.justifications.filter { !$0.justified }.count
+        let sortedReads = session.entries.sorted { $0.at < $1.at }.map { ($0.taskIndex, $0.label) }
+
         var inputs: [PerTaskSessionInput] = []
-        for task in state.tasks {
+        for (taskIdx, task) in state.tasks.enumerated() {
             let dur = task.timeOnTask
             let normalized = TaskMatcher.normalize(task.task)
             let kt = (try? ctx.fetch(FetchDescriptor<KnowledgeTask>(predicate: #Predicate { $0.normalizedTitle == normalized })))?.first
@@ -318,12 +331,7 @@ class AccountabilityEngine {
             let lastDur = prior.sorted { $0.completedAt > $1.completedAt }.first?.duration
             let avg: TimeInterval? = prior.isEmpty ? nil : prior.map { $0.duration }.reduce(0, +) / Double(prior.count)
             let comparison = Self.comparisonString(current: dur, last: lastDur, average: avg)
-            let offCount = session.justifications.filter { !$0.justified }.count
-            let taskIdx = state.tasks.firstIndex(where: { $0.task == task.task }) ?? -1
-            let steps = taskIdx >= 0 ? TimelineCoalescer.labelsForTask(
-                index: taskIdx,
-                reads: session.entries.sorted { $0.at < $1.at }.map { ($0.taskIndex, $0.label) }
-            ) : []
+            let steps = TimelineCoalescer.labelsForTask(index: taskIdx, reads: sortedReads)
             inputs.append(PerTaskSessionInput(
                 title: task.task, durationSeconds: dur,
                 lastDurationSeconds: lastDur, averageSeconds: avg,
@@ -332,14 +340,25 @@ class AccountabilityEngine {
             ))
         }
 
-        var comments: [PerTaskComment] = []
+        var modelComments: [PerTaskComment] = []
         do {
-            comments = try await aiService.summarizeSession(perTask: inputs)
+            modelComments = try await aiService.summarizeSession(perTask: inputs)
         } catch {
             dbg("summarizeSession failed: \(error)")
         }
-        if comments.isEmpty {
-            comments = inputs.map { PerTaskComment(taskTitle: $0.title, comment: $0.localComparison, suggestion: nil) }
+
+        // Realign the model's comments to our tasks robustly: emit exactly one
+        // card per task, in task order, matching on title (case/whitespace-
+        // insensitive). If the model dropped/renamed a task, fall back to that
+        // task's authoritative local comparison so no card is silently lost.
+        func key(_ s: String) -> String {
+            s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        let comments: [PerTaskComment] = inputs.map { input in
+            if let match = modelComments.first(where: { key($0.taskTitle) == key(input.title) }) {
+                return match
+            }
+            return PerTaskComment(taskTitle: input.title, comment: input.localComparison, suggestion: nil)
         }
         state.sessionRecap = SessionRecap(ranges: ranges, perTask: comments)
     }

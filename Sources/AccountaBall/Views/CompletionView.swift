@@ -155,10 +155,6 @@ struct CompletionView: View {
     }
 }
 
-    private func mmss(_ t: TimeInterval) -> String {
-        let s = Int(t); return String(format: "%02d:%02d", s/60, s%60)
-    }
-
 struct ConfettiPiece: Identifiable {
     let id = UUID()
     var x, y: CGFloat
@@ -255,6 +251,4 @@ struct RecapCard: View {
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
     }
-
-    fileprivate static func mmss(_ t: TimeInterval) -> String { let s = Int(t); return String(format: "%02d:%02d", s/60, s%60) }
 }

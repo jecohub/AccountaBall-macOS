@@ -35,6 +35,7 @@ func runEngineAvailabilityTests() async {
         engine.enterAIUnavailable()
         expect(s.appPhase == .aiUnavailable, "entered aiUnavailable")
         expect(s.aiUnavailableHint != nil, "hint set")
+        expect(s.isCapturing == false, "outage stops capturing so recover can re-trigger the watcher edge")
 
         ai.recover()                               // provider comes back
         let ok = await ai.healthCheck()            // now healthy
@@ -42,5 +43,6 @@ func runEngineAvailabilityTests() async {
         engine.recoverFromAIUnavailable()
         expect(s.appPhase == .session, "resumed to session")
         expect(s.aiUnavailableHint == nil, "hint cleared")
+        expect(s.isCapturing == true, "recovery re-arms capturing (false→true edge restarts the loop)")
     }
 }
