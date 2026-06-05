@@ -26,6 +26,12 @@ final class OllamaAIService: AIService {
             "stream": false,
             "format": jsonSchema,
             "keep_alive": "10m",
+            // Deterministic decoding. Ollama's default temperature (0.8) made the
+            // same screen score on-task one cycle and off-task the next, which
+            // reset the suspicion counter and let real off-task work slip by — and
+            // made excuse verdicts a coin flip. Temperature 0 gives stable,
+            // repeatable judgments.
+            "options": ["temperature": 0.0],
             "messages": [
                 ["role": "system", "content": system],
                 ["role": "user", "content": user]

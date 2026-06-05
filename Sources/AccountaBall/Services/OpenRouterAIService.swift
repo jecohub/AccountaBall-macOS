@@ -17,6 +17,9 @@ class OpenRouterAIService: AIService {
         var body: [String: Any] = [
             "model": model,
             "max_tokens": maxTokens,
+            // Deterministic decoding for stable, repeatable classification and
+            // excuse verdicts (mirrors the Ollama path — see OllamaAIService).
+            "temperature": 0,
             "messages": [
                 ["role": "system", "content": system],
                 ["role": "user",   "content": user]

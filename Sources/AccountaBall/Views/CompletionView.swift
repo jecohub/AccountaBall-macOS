@@ -64,20 +64,12 @@ struct CompletionView: View {
                         if let recap = state.sessionRecap {
                             ScrollView {
                                 VStack(alignment: .leading, spacing: 12) {
-                                    if !recap.ranges.isEmpty {
-                                        Text("Timeline").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
-                                        ForEach(Array(recap.ranges.enumerated()), id: \.offset) { _, r in
-                                            HStack(alignment: .top, spacing: 8) {
-                                                Text(String(format: "%02d:%02d", Int(r.startOffset)/60, Int(r.startOffset)%60) + "–" + String(format: "%02d:%02d", Int(r.endOffset)/60, Int(r.endOffset)%60))
-                                                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.6))
-                                                    .frame(width: 96, alignment: .leading)
-                                                Text(r.label + (r.taskIndex == nil ? "  (off-task)" : ""))
-                                                    .font(.system(size: 12)).foregroundStyle(r.taskIndex == nil ? .orange.opacity(0.85) : .white.opacity(0.85))
-                                            }
-                                        }
-                                    }
+                                    // Per-task commentary first — it's the high-value
+                                    // takeaway. The timeline (which can run to many rows)
+                                    // follows so it never pushes the comments below the
+                                    // fold of this scroll area.
                                     if !recap.perTask.isEmpty {
-                                        Text("Per task").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8)).padding(.top, 6)
+                                        Text("Per task").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
                                         ForEach(Array(recap.perTask.enumerated()), id: \.offset) { _, c in
                                             VStack(alignment: .leading, spacing: 3) {
                                                 Text(c.taskTitle).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
@@ -88,9 +80,21 @@ struct CompletionView: View {
                                             .background(Color.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 10))
                                         }
                                     }
+                                    if !recap.ranges.isEmpty {
+                                        Text("Timeline").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8)).padding(.top, 6)
+                                        ForEach(Array(recap.ranges.enumerated()), id: \.offset) { _, r in
+                                            HStack(alignment: .top, spacing: 8) {
+                                                Text(String(format: "%02d:%02d", Int(r.startOffset)/60, Int(r.startOffset)%60) + "–" + String(format: "%02d:%02d", Int(r.endOffset)/60, Int(r.endOffset)%60))
+                                                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.6))
+                                                    .frame(width: 96, alignment: .leading)
+                                                Text(r.label + (r.taskIndex == nil ? "  (off-task)" : ""))
+                                                    .font(.system(size: 12)).foregroundStyle(r.taskIndex == nil ? .orange.opacity(0.85) : .white.opacity(0.85))
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            .frame(maxHeight: 260)
+                            .frame(maxHeight: 300)
                         }
 
                         VStack(spacing: 12) {
