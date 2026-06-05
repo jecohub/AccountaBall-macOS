@@ -18,7 +18,7 @@ struct CompletionView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color.black.opacity(0.92).ignoresSafeArea()
+                Color.black.ignoresSafeArea()
 
                 // Hoop (left side)
                 if showHoop {
@@ -111,8 +111,17 @@ struct CompletionView: View {
     }
 
     private var sessionDuration: String {
-        guard let start = state.sessionStartTime else { return "--:--" }
-        let s = Int(Date().timeIntervalSince(start))
+        // Prefer the frozen duration captured at completion (sessionStartTime is
+        // nil by now); fall back to a live count only if we're somehow still running.
+        let secs: TimeInterval
+        if let frozen = state.lastSessionDuration {
+            secs = frozen
+        } else if let start = state.sessionStartTime {
+            secs = Date().timeIntervalSince(start)
+        } else {
+            return "--:--"
+        }
+        let s = Int(secs)
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
     }

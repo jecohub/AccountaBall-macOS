@@ -9,7 +9,7 @@ struct TaskSetupView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.85).ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Header with mini ball
@@ -34,26 +34,30 @@ struct TaskSetupView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
 
-                // Rows
-                VStack(spacing: 8) {
-                    ForEach(0..<maxRows, id: \.self) { i in
-                        TaskRowView(
-                            engine: engine,
-                            index: i,
-                            isUnlocked: isRowUnlocked(i),
-                            showError: showValidationError
-                        )
+                // Rows — scrollable so the inline "you did this before" match cards
+                // can expand without pushing the pinned "Let's go!" off-screen.
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(0..<maxRows, id: \.self) { i in
+                            TaskRowView(
+                                engine: engine,
+                                index: i,
+                                isUnlocked: isRowUnlocked(i),
+                                showError: showValidationError
+                            )
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 20)
+                .frame(maxHeight: .infinity)
 
-                Spacer()
-
-                // Let's go button
+                // Let's go button — pinned below the scroll area, always reachable.
                 Button("Let's go!") { handleLetsGo() }
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(!hasAtLeastOneCompleteRow)
                     .opacity(hasAtLeastOneCompleteRow ? 1 : 0.4)
+                    .padding(.top, 8)
                     .padding(.bottom, 24)
             }
         }
@@ -80,8 +84,12 @@ struct TaskSetupView: View {
         guard !filled.isEmpty else { showValidationError = true; return }
         state.tasks = filled
         state.saveTasks()
-        withAnimation { state.appPhase = .session }
         state.startSession()
+        // Open the engine's WorkSession so timeline entries, the completion recap,
+        // and completion history actually persist (engine.currentSession drives
+        // record()/finalizeSessionRecap()/summarizeCompletion()).
+        engine.beginSession(tasks: filled)
+        withAnimation { state.appPhase = .session }
     }
 }
 

@@ -55,8 +55,13 @@ class AccountabilityEngine {
                     allowanceRulesByIndex: self.allowanceRulesByIndex(for: activeTasks)
                 )
             } catch {
-                dbg("classifyMulti failed (skipping cycle): \(error)")
-                self.enterAIUnavailable(reason: error)
+                if Self.isBenignCancellation(error) {
+                    // We cancelled the request (loop tick/stop) — not an outage.
+                    dbg("classifyMulti cancelled (benign skip)")
+                } else {
+                    dbg("classifyMulti failed (skipping cycle): \(error)")
+                    self.enterAIUnavailable(reason: error)
+                }
                 result = nil
             }
             DebugLog.dbgBlock("CYCLE", [
@@ -75,20 +80,45 @@ class AccountabilityEngine {
         suspicionCount = 0
     }
 
-    func resumeAfterExcuse() {
-        dbg("resumeAfterExcuse -> session")
+    /// Resume watching after an off-task prompt. `graceSeconds` overrides the
+    /// default settle window — used by the "Continue anyway" escape hatch to give
+    /// the user a longer breather before the next possible nudge.
+    func resumeAfterExcuse(graceSeconds: TimeInterval? = nil) {
+        dbg("resumeAfterExcuse -> session (grace=\(graceSeconds.map { "\($0)" } ?? "default"))")
         suspicionCount = 0
         state.ballState = .onTask
         state.appPhase = .session
-        resetSettleWindow()
+        if let graceSeconds {
+            settleUntil = now().addingTimeInterval(graceSeconds)
+        } else {
+            resetSettleWindow()
+        }
+    }
+
+    /// True for cancellation-class errors (we cancelled the in-flight request as
+    /// part of the normal capture lifecycle). These must NOT be treated as a
+    /// provider outage — otherwise stopping/ticking the loop spuriously flips the
+    /// app into `.aiUnavailable`.
+    static func isBenignCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let ns = error as NSError
+        return ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCancelled
     }
 
     // MARK: - AI unavailable
+
+    /// The phase we were in when the provider went down, so recovery returns the
+    /// user where they were (e.g. the welcome screen if they never started a
+    /// session) instead of always dumping them into `.session`.
+    private var phaseBeforeUnavailable: AppPhase = .session
 
     @MainActor
     func enterAIUnavailable(reason: Error? = nil) {
         guard state.appPhase != .aiUnavailable else { return }
         dbg("AI unavailable: \(reason.map { "\($0)" } ?? "health check failed")")
+        // Remember where we were so recovery returns there (a fresh launch with
+        // the provider down is on .welcome/.setup, not in a session).
+        phaseBeforeUnavailable = state.appPhase
         stop()
         // Drop the capturing flag so recovery's `isCapturing = true` is a real
         // false→true edge for the AppDelegate watcher, which re-calls start().
@@ -128,11 +158,18 @@ class AccountabilityEngine {
         guard state.appPhase == .aiUnavailable else { return }
         healthPollTask?.cancel(); healthPollTask = nil
         state.aiUnavailableHint = nil
-        dbg("AI recovered -> resuming session")
-        state.appPhase = .session
-        state.ballState = .onTask
-        state.isCapturing = true
-        resetSettleWindow()
+        // Return to wherever the outage interrupted us. Only re-arm watching when
+        // that was an active session; on .welcome/.setup the user hasn't started.
+        let target = phaseBeforeUnavailable == .aiUnavailable ? .welcome : phaseBeforeUnavailable
+        dbg("AI recovered -> resuming at \(target)")
+        state.appPhase = target
+        if target == .session {
+            state.ballState = .onTask
+            state.isCapturing = true
+            resetSettleWindow()
+        } else {
+            state.ballState = .idle
+        }
     }
 
     /// Process one classification *outcome*. `result == nil` means the AI call
@@ -466,8 +503,10 @@ class AccountabilityEngine {
     // MARK: - v3 excuse resolution
 
     /// Returns whether the excuse was judged justified (so the UI can show the
-    /// right verdict stage). On a justified verdict the engine also resumes the
-    /// session (sets phase back to `.session`).
+    /// right verdict stage). On a justified verdict the engine records an
+    /// Allowance + KnowledgeTask link. Resuming the session is left to the caller
+    /// (`OffTaskView`) so it can show the verdict stage and offer the "Continue
+    /// anyway" escape hatch on rejection before watching resumes.
     @MainActor
     @discardableResult
     func handleExcuse(_ text: String, tasks: [TaskItem], screenText: String) async -> Bool {
@@ -514,9 +553,9 @@ class AccountabilityEngine {
                 kt.allowances.append(allowance)
                 try? ctx.save()
             }
-            resumeAfterExcuse()
         }
-        // If not justified, keep the existing angry state (no extra action here).
+        // Resuming (or not) is the view's job — see OffTaskView. Returning the
+        // verdict lets it show "Carry on" vs "Get back to work" + escape hatch.
         return verdict.justified
     }
 

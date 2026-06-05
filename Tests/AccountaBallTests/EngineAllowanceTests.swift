@@ -56,11 +56,12 @@ func runEngineAllowanceTests() async {
         expect(beforeAllowances.isEmpty, "no allowances before handleExcuse")
         expect(beforeKTs.isEmpty, "no knowledge tasks before handleExcuse")
 
-        await engine.handleExcuse("I'm watching React tutorials on YouTube", tasks: s.activeTasks, screenText: "some screen text")
+        let justified = await engine.handleExcuse("I'm watching React tutorials on YouTube", tasks: s.activeTasks, screenText: "some screen text")
 
         let events = (try? ctx.fetch(FetchDescriptor<JustificationEvent>())) ?? []
         let kts = (try? ctx.fetch(FetchDescriptor<KnowledgeTask>())) ?? []
         let allowances = (try? ctx.fetch(FetchDescriptor<Allowance>())) ?? []
+        expect(justified, "handleExcuse reports the verdict as justified")
         expect(events.count == 1, "one justification event recorded")
         expect(events.first?.justified == true, "event marked justified")
         expect(events.first?.inferredTaskIndex == 0, "event has inferred task index")
@@ -70,8 +71,8 @@ func runEngineAllowanceTests() async {
         expect(allowances.first?.needsConfirmation == false, "allowance is active (no confirmation needed)")
         expect(kts.first?.allowances.count == 1, "allowance linked to knowledge task")
         expect(kts.first?.originalTitles.contains("write proposal") == true, "original title recorded")
-        expect(s.ballState == .onTask, "engine resumed to onTask after justification")
-        expect(s.appPhase == .session, "engine resumed to session phase after justification")
+        // Resuming the session is now the view's responsibility (OffTaskView shows
+        // the verdict + escape hatch first); handleExcuse no longer flips phase.
     }
 
     // ── Not-justified excuse records the event but creates no allowance ─────

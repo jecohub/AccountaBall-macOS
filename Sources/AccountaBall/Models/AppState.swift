@@ -18,6 +18,10 @@ final class AppState: ObservableObject {
     @Published var aiUnavailableHint: String? = nil
     /// The end-of-session breakdown: timeline ranges + per-task commentary.
     @Published var sessionRecap: SessionRecap? = nil
+    /// Frozen total duration captured at completion. `endSession()` clears
+    /// `sessionStartTime`, so the completion screen reads this instead (otherwise
+    /// it shows "--:--").
+    @Published var lastSessionDuration: TimeInterval? = nil
 
     // v3 — UI bridges (Task 18)
     /// AI recap per finished task, keyed by task title. Written by the engine on
@@ -31,6 +35,8 @@ final class AppState: ObservableObject {
 
     func startSession() {
         sessionStartTime = Date()
+        lastSessionDuration = nil
+        sessionRecap = nil
         isCapturing = true
         appPhase = .session
         ballState = .onTask
@@ -47,6 +53,11 @@ final class AppState: ObservableObject {
         guard index >= 0 && index < tasks.count else { return }
         tasks[index].isComplete = true
         if allTasksComplete {
+            // Freeze the total duration before endSession() nils sessionStartTime,
+            // so the completion screen can show it.
+            if let start = sessionStartTime {
+                lastSessionDuration = Date().timeIntervalSince(start)
+            }
             endSession()
             appPhase = .complete
         }

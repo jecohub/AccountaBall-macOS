@@ -103,7 +103,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
                     if phase == .complete {
                         if !didFinalize {
                             didFinalize = true
+                            // Build the recap from the still-open WorkSession, THEN
+                            // close it (endSession nils currentSession).
                             await self.engine?.finalizeSessionRecap()
+                            self.engine?.endSession()
                         }
                     } else {
                         didFinalize = false

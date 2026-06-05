@@ -31,9 +31,12 @@ class FloatingPanel: NSPanel {
     func resize(for phase: AppPhase) {
         switch phase {
         case .idle, .welcome:
-            setContentSize(NSSize(width: 400, height: 320)); center()
+            setContentSize(clampedToScreen(NSSize(width: 400, height: 320))); center()
         case .setup:
-            setContentSize(NSSize(width: 520, height: 440)); center()
+            // Taller so the task rows + "you did this before" cards have room; the
+            // view also scrolls and pins "Let's go!", and this is clamped to the
+            // screen so the panel can never exceed the display.
+            setContentSize(clampedToScreen(NSSize(width: 520, height: 580))); center()
         case .session:
             // Small widget peeking at the right edge — does NOT cover the screen,
             // so the rest of the desktop stays clickable.
@@ -49,17 +52,26 @@ class FloatingPanel: NSPanel {
                 anchorRightEdge(size: NSSize(width: 360, height: 420))
             }
         case .progress:
-            setContentSize(NSSize(width: 480, height: 420)); center()
+            setContentSize(clampedToScreen(NSSize(width: 480, height: 420))); center()
         case .aiUnavailable:
-            anchorRightEdge(size: NSSize(width: 300, height: 300))
+            anchorRightEdge(size: NSSize(width: 320, height: 300))
         case .complete:
-            setContentSize(NSSize(width: 600, height: 500)); center()
+            setContentSize(clampedToScreen(NSSize(width: 600, height: 560))); center()
         }
+    }
+
+    /// Clamp a requested content size to the current screen's visible frame (with
+    /// a margin) so a panel can never grow past the display and push controls off
+    /// the visible area.
+    private func clampedToScreen(_ size: NSSize, margin: CGFloat = 40) -> NSSize {
+        guard let vf = NSScreen.main?.visibleFrame else { return size }
+        return NSSize(width: min(size.width, vf.width - margin),
+                      height: min(size.height, vf.height - margin))
     }
 
     /// Pin the panel flush against the right edge of the visible screen, vertically centered.
     private func anchorRightEdge(size: NSSize) {
-        setContentSize(size)
+        setContentSize(clampedToScreen(size))
         guard let screen = NSScreen.main else { return }
         let vf = screen.visibleFrame
         let x = vf.maxX - frame.width

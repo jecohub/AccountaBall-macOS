@@ -21,7 +21,7 @@ struct WhatsUpView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.9))
+        .background(Color.black)
     }
 }
 
@@ -30,8 +30,11 @@ struct AccountaProgressView: View {
     var onBack: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            Color.black.opacity(0.85).ignoresSafeArea()
+        // Solid black backdrop as a ZStack LAYER (not a VStack sibling) so the
+        // whole panel is opaque — otherwise the lower half is transparent and the
+        // white desktop shows through, hiding the task list.
+        ZStack {
+            Color.black.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 16) {
                 // Session timer

@@ -62,13 +62,34 @@ struct OffTaskView: View {
                         .disabled(excuseText.isEmpty || isEvaluating)
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
-            } else {
-                // Verdict shown — the user dismisses it themselves.
+            } else if stage == .accepted {
+                // Justified — acknowledge and resume on the normal settle window.
                 Button("Got it") {
-                    dbg("verdict dismissed by user -> resume")
+                    dbg("accepted verdict dismissed -> resume")
                     engine.resumeAfterExcuse()
                 }
                 .buttonStyle(PrimaryButtonStyle())
+                .transition(.opacity)
+            } else {
+                // Rejected — nudge back to work, but offer an escape hatch so the
+                // user is never trapped. "Back to it" resumes on the normal settle
+                // window; "Continue anyway" grants a longer grace before the next
+                // possible nudge.
+                VStack(spacing: 8) {
+                    Button("Back to it") {
+                        dbg("rejected verdict accepted -> resume (default settle)")
+                        engine.resumeAfterExcuse()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+
+                    Button("Continue anyway") {
+                        dbg("rejected verdict overridden -> resume with grace")
+                        engine.resumeAfterExcuse(graceSeconds: AppConstants.continueAnywayGraceSeconds)
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .buttonStyle(.plain)
+                }
                 .transition(.opacity)
             }
         }
@@ -113,13 +134,12 @@ struct OffTaskView: View {
             )
             dbg("excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
             isEvaluating = false
-            // On justified, the engine already resumed (phase -> .session) and this
-            // view is dismissed. On not-justified, show the angry verdict; the user
-            // dismisses it with "Got it".
-            if !justified {
-                withAnimation { stage = .rejected }
-                dbg("verdict shown (rejected) — waiting for user to dismiss")
-            }
+            // The engine no longer flips phase on a verdict — it leaves resuming to
+            // this view so we can show clear accepted/rejected feedback and offer
+            // the "Continue anyway" escape hatch. Show the matching stage; the user
+            // dismisses it (which resumes via the buttons above).
+            withAnimation { stage = justified ? .accepted : .rejected }
+            dbg("verdict shown (\(justified ? "accepted" : "rejected")) — waiting for user to dismiss")
         }
     }
 }

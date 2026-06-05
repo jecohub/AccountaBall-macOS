@@ -7,4 +7,9 @@ enum AppConstants {
     /// interval, each on-task cycle credits this many seconds to the task's
     /// `timeOnTask`, and the timeline coalescer extends the last range by it.
     static let cycleSeconds: TimeInterval = 5
+
+    /// Grace breather granted by the off-task "Continue anyway" escape hatch.
+    /// Longer than the default settle window so a user who chooses to keep going
+    /// after a rejected excuse isn't immediately re-nagged.
+    static let continueAnywayGraceSeconds: TimeInterval = 120
 }

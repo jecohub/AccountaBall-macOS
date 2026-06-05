@@ -9,7 +9,7 @@ struct WelcomeView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.85).ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
             VStack(spacing: 24) {
                 Spacer()

@@ -56,6 +56,8 @@ func runAppStateV2Tests() {
         s6.completeTaskAt(index: 0)
         expect(s6.appPhase == .complete, "completeTaskAt triggers complete when all done")
         expect(s6.isCapturing == false, "capturing stops when complete")
+        expect(s6.sessionStartTime == nil, "endSession clears sessionStartTime")
+        expect(s6.lastSessionDuration != nil, "completion freezes the total duration for the completion screen")
 
         // out-of-bounds index is safe
         let s7 = AppState()

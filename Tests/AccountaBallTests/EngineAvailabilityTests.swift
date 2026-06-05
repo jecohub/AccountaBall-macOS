@@ -45,4 +45,30 @@ func runEngineAvailabilityTests() async {
         expect(s.aiUnavailableHint == nil, "hint cleared")
         expect(s.isCapturing == true, "recovery re-arms capturing (false→true edge restarts the loop)")
     }
+
+    // Launched with the provider down (user is on .welcome, no session yet):
+    // recovery must return to .welcome, NOT dump them into a task-less session.
+    await suite("EngineAvailability_recoverReturnsToOriginPhase") {
+        guard let c = try? AccountaBallStore.makeContainer(inMemory: true) else { expect(false,"c"); return }
+        let s = AppState(); s.appPhase = .welcome          // fresh launch, no session
+        let ai = FlakyAI()
+        let engine = AccountabilityEngine(state: s, captureService: ScreenCaptureService(), ocrService: OCRService(), aiService: ai, notificationService: NotificationService())
+        engine.modelContext = c.mainContext
+
+        engine.enterAIUnavailable()
+        expect(s.appPhase == .aiUnavailable, "entered aiUnavailable from welcome")
+        ai.recover()
+        engine.recoverFromAIUnavailable()
+        expect(s.appPhase == .welcome, "recovery returns to .welcome, not .session")
+        expect(s.isCapturing == false, "no capturing armed when there was no session")
+    }
+
+    // Cancellation-class errors are benign (we cancelled the request) and must
+    // never be treated as a provider outage.
+    await suite("EngineAvailability_benignCancellation") {
+        expect(AccountabilityEngine.isBenignCancellation(CancellationError()), "CancellationError is benign")
+        expect(AccountabilityEngine.isBenignCancellation(NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)), "URLError cancelled (-999) is benign")
+        expect(!AccountabilityEngine.isBenignCancellation(NSError(domain: NSURLErrorDomain, code: NSURLErrorCannotConnectToHost)), "cannotConnectToHost is a real outage, not benign")
+        expect(!AccountabilityEngine.isBenignCancellation(NSError(domain: "Other", code: -999)), "non-URL -999 is not treated as cancellation")
+    }
 }
