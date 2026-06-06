@@ -51,10 +51,14 @@ enum AIPrompts {
     /// matching the classifyMulti JSON schema.
     static let classifySystem = """
     You classify which of the user's declared tasks matches the current screen.
-    Respond with JSON: {"result": "TASK:N" | "OFFTASK" | "DONE:N", "label": "<3-5 word activity>"}
+    Respond with JSON: {"result": "TASK:N" | "OFFTASK" | "DONE:N", "label": "<description>"}
     - TASK:N means the user is on the Nth task (0-based)
     - OFFTASK means none of the declared tasks match the screen
     - DONE:N means task N appears completed
+    - label: a specific, concrete description of what's actually on screen,
+      naming the app/site and the content — e.g. "Editing the Q3 sales proposal
+      in Google Docs" or "Watching a cat video on YouTube". One short phrase,
+      max ~12 words. Describe what you see, not a generic category.
     """
 
     /// System prompt for evaluateExcuse.

@@ -18,6 +18,15 @@ class AccountabilityEngine {
     let settleWindow: TimeInterval = 15
     private var settleUntil: Date = .distantPast
 
+    /// Activity-scoped "Give me 2 minutes" grace. While the user stays on the
+    /// off-task activity they explicitly asked to continue, off-task reads are
+    /// suppressed. Switching to a *different* activity ends the grace and
+    /// re-checks immediately — the breather is for that one screen, not a blanket
+    /// pass to do anything off-task.
+    private var graceActivity: String?
+    private var graceUntil: Date = .distantPast
+    private var inActivityGrace: Bool { graceActivity != nil && now() < graceUntil }
+
     // v3 — persistence
     var modelContext: ModelContext?
     var currentSession: WorkSession?
@@ -80,19 +89,40 @@ class AccountabilityEngine {
         suspicionCount = 0
     }
 
-    /// Resume watching after an off-task prompt. `graceSeconds` overrides the
-    /// default settle window — used by the "Continue anyway" escape hatch to give
-    /// the user a longer breather before the next possible nudge.
-    func resumeAfterExcuse(graceSeconds: TimeInterval? = nil) {
-        dbg("resumeAfterExcuse -> session (grace=\(graceSeconds.map { "\($0)" } ?? "default"))")
+    /// Resume watching after an off-task prompt.
+    ///
+    /// - Parameter graceForCurrentActivity: when true (the "Give me 2 minutes"
+    ///   escape hatch), grant an activity-scoped grace for the current off-task
+    ///   activity (`lastActivityLabel`): off-task reads matching it are suppressed
+    ///   for `continueAnywayGraceSeconds`, but switching to a different activity
+    ///   ends the grace and re-checks. When false ("Back to work"), no grace —
+    ///   just the normal short settle breather.
+    func resumeAfterExcuse(graceForCurrentActivity: Bool = false) {
         suspicionCount = 0
         state.ballState = .onTask
         state.appPhase = .session
-        if let graceSeconds {
-            settleUntil = now().addingTimeInterval(graceSeconds)
+        resetSettleWindow()  // brief unconditional breather in both cases
+        if graceForCurrentActivity, !lastActivityLabel.isEmpty {
+            graceActivity = lastActivityLabel
+            graceUntil = now().addingTimeInterval(AppConstants.continueAnywayGraceSeconds)
+            dbg("resumeAfterExcuse -> session (activity grace for \"\(lastActivityLabel)\" +\(Int(AppConstants.continueAnywayGraceSeconds))s)")
         } else {
-            resetSettleWindow()
+            clearActivityGrace()
+            dbg("resumeAfterExcuse -> session (no grace)")
         }
+    }
+
+    private func clearActivityGrace() {
+        graceActivity = nil
+        graceUntil = .distantPast
+    }
+
+    /// Two activity labels refer to the same on-screen activity. Case/whitespace-
+    /// insensitive exact match — deterministic decoding (temperature 0) keeps the
+    /// label stable per screen, so equality is a reliable "same screen" signal.
+    static func activityMatches(_ a: String, _ b: String) -> Bool {
+        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        return norm(a) == norm(b)
     }
 
     /// True for cancellation-class errors (we cancelled the in-flight request as
@@ -317,6 +347,19 @@ class AccountabilityEngine {
         case .offTask(let label):
             lastActivityLabel = label
             record(taskIndex: nil, label: label)
+            // Activity-scoped "Give me 2 minutes": while the user stays on the
+            // activity they asked to continue, suppress entirely. If they switch
+            // to a different activity, the grace no longer applies — end it and
+            // re-check normally.
+            if inActivityGrace {
+                if Self.activityMatches(label, graceActivity ?? "") {
+                    dbg("offTask within activity grace (\"\(label)\") — suppressed")
+                    state.activeTaskIndex = nil
+                    return
+                }
+                dbg("offTask activity changed (\"\(label)\" ≠ grace \"\(graceActivity ?? "")\") — ending grace, re-checking")
+                clearActivityGrace()
+            }
             suspicionCount += 1
             state.activeTaskIndex = nil
             dbg("offTask result (suspicion=\(suspicionCount))")

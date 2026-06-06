@@ -72,19 +72,19 @@ struct OffTaskView: View {
                 .transition(.opacity)
             } else {
                 // Rejected — nudge back to work, but offer an escape hatch so the
-                // user is never trapped. "Back to it" resumes on the normal settle
-                // window; "Continue anyway" grants a longer grace before the next
-                // possible nudge.
+                // user is never trapped. "Back to work" resumes normally;
+                // "Give me 2 minutes" grants a grace scoped to *this* activity —
+                // switch to something else and AccountaBall checks in again.
                 VStack(spacing: 8) {
-                    Button("Back to it") {
-                        dbg("rejected verdict accepted -> resume (default settle)")
+                    Button("Back to work") {
+                        dbg("rejected verdict accepted -> resume (no grace)")
                         engine.resumeAfterExcuse()
                     }
                     .buttonStyle(PrimaryButtonStyle())
 
-                    Button("Continue anyway") {
-                        dbg("rejected verdict overridden -> resume with grace")
-                        engine.resumeAfterExcuse(graceSeconds: AppConstants.continueAnywayGraceSeconds)
+                    Button("Give me 2 minutes") {
+                        dbg("rejected verdict overridden -> resume with activity grace")
+                        engine.resumeAfterExcuse(graceForCurrentActivity: true)
                     }
                     .font(.system(size: 12))
                     .foregroundStyle(.white.opacity(0.6))
