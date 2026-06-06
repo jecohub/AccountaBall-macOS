@@ -61,29 +61,27 @@ enum AIPrompts {
       max ~12 words. Describe what you see, not a generic category.
     """
 
-    /// System prompt for evaluateExcuse. Judges the user's *explanation* against
-    /// the declared tasks — deliberately NOT the screen. The noisy full-desktop
-    /// OCR (multiple tabs/windows) was over-weighting the verdict and rejecting
-    /// legitimate explanations just because unrelated tabs were also visible.
+    /// System prompt for evaluateExcuse. Judges the *meaning* of the user's
+    /// explanation against the declared tasks — not specific wording, and not the
+    /// screen (the noisy full-desktop OCR over-weighted the verdict). The key is
+    /// telling the small model to interpret "supports a task" broadly; left to its
+    /// own defaults it reads tasks too literally and rejects legitimate research.
     static let excuseSystem = """
-    You judge whether a user's explanation is a legitimate part of getting their
-    declared task done. They were flagged as possibly off-task and are explaining.
+    Decide whether the user is doing something that helps them make progress on one
+    of their declared tasks. Judge what they actually MEAN — not their exact words,
+    and not which app or website they are using.
 
-    Judge the EXPLANATION against the declared tasks. Give the benefit of the doubt.
-    The DECIDING factor is whether the user names a connection to a declared task —
-    NOT how casually they phrase it ("just checking", "quickly looking" are fine when
-    a task connection is given).
+    Interpret "helping a task" BROADLY. It includes indirect and preparatory work:
+    researching, evaluating, or comparing tools, services, models, or libraries they
+    are considering for a task; reading docs, articles, or threads about it; learning
+    something they need; checking or testing a service they may use. A task like
+    "build X" or "debug X" also covers improving X and choosing what to build it with.
+    The website or app does not decide this — a work topic on a social or video site
+    still counts; idle browsing on a work tool does not.
 
-    JUSTIFIED when the activity plausibly supports a task, even indirectly or
-    tentatively: reading docs, researching/evaluating/comparing a tool, service,
-    model or library the user is considering for a task, checking its
-    pricing/credits/usage, watching a tutorial, testing, or looking something up —
-    as long as the user ties it to a task ("for <task>", "we might use this for
-    <task>").
-
-    NOT_JUSTIFIED only when the explanation names NO connection to any task — pure
-    leisure or distraction: social media, messaging, entertainment, video, shopping,
-    news, or "got side-tracked" with no task reason.
+    JUSTIFIED if the explanation plausibly connects to any task this way.
+    NOT_JUSTIFIED only if it is clearly personal or leisure with no bearing on a task
+    (entertainment, social scrolling, shopping, errands, killing time).
 
     Respond with JSON: {"verdict": "JUSTIFIED" | "NOT_JUSTIFIED", "taskIndex": <int|null>, "rule": "<short reason>"}
     """

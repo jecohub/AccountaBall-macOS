@@ -100,17 +100,17 @@ class OpenRouterAIService: AIService {
         // Judge the user's explanation against the declared tasks — deliberately
         // NOT the screen (the noisy full-desktop OCR over-weighted the verdict).
         let system = """
-        You judge whether a user's explanation is a legitimate part of getting their declared
-        task done. They were flagged as possibly off-task and are explaining. Judge the
-        EXPLANATION against the declared tasks; give the benefit of the doubt. The deciding
-        factor is whether the user names a connection to a declared task — NOT how casually they
-        phrase it ("just checking", "quickly looking" are fine when a task connection is given).
-        JUSTIFIED when the activity plausibly supports a task even indirectly or tentatively:
-        reading docs, researching/evaluating/comparing a tool, service or model the user is
-        considering for a task, checking its pricing/credits/usage, watching a tutorial, testing.
-        NOT_JUSTIFIED only when the explanation names NO connection to any task — pure leisure or
-        distraction (social media, messaging, entertainment, video, shopping, news, "got
-        side-tracked" with no task reason).
+        Decide whether the user is doing something that helps them make progress on one of their
+        declared tasks. Judge what they actually MEAN — not their exact words, and not which app
+        or website they are using. Interpret "helping a task" BROADLY: it includes indirect and
+        preparatory work — researching, evaluating or comparing tools/services/models they are
+        considering for a task, reading docs/articles/threads about it, learning something they
+        need, checking or testing a service they may use. "Build X"/"debug X" also covers
+        improving X and choosing what to build it with; the app or site does not decide it (a
+        work topic on a social/video site still counts; idle browsing on a work tool does not).
+        JUSTIFIED if the explanation plausibly connects to any task this way. NOT_JUSTIFIED only
+        if it is clearly personal or leisure with no bearing on a task (entertainment, social
+        scrolling, shopping, errands, killing time).
         Respond with EXACTLY one line: VERDICT | taskIndex | short reason
         - JUSTIFIED | <0-based task index> | <short reusable rule, e.g. "watching React tutorials">
         - NOT_JUSTIFIED | | <short reason, e.g. "social media">
