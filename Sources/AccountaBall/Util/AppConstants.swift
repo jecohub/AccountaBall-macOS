@@ -6,7 +6,9 @@ enum AppConstants {
     /// The capture/classify cycle length. The capture loop fires on this
     /// interval, each on-task cycle credits this many seconds to the task's
     /// `timeOnTask`, and the timeline coalescer extends the last range by it.
-    static let cycleSeconds: TimeInterval = 5
+    /// 3s keeps the checking responsive (e.g. noticing you've returned to work
+    /// during an off-task prompt) without hammering the model.
+    static let cycleSeconds: TimeInterval = 3
 
     /// Grace breather granted by the off-task "Continue anyway" escape hatch.
     /// Longer than the default settle window so a user who chooses to keep going

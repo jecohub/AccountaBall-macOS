@@ -55,13 +55,13 @@ func runAccountabilityEngineTests() {
 
         (state, engine) = make()
         engine.processResult(.onTask(index: 0, label: ""))
-        expect(state.tasks[0].timeOnTask == 5, "onTask accumulates 5s per cycle")
+        expect(state.tasks[0].timeOnTask == AppConstants.cycleSeconds, "onTask accumulates one cycle of time")
         engine.processResult(.onTask(index: 0, label: ""))
-        expect(state.tasks[0].timeOnTask == 10, "second onTask accumulates another 5s")
+        expect(state.tasks[0].timeOnTask == AppConstants.cycleSeconds * 2, "second onTask accumulates another cycle")
 
         (state, engine) = make()
         engine.processResult(.onTask(index: 1, label: ""))
-        expect(state.tasks[1].timeOnTask == 5, "onTask on task 1 accumulates time on task 1")
+        expect(state.tasks[1].timeOnTask == AppConstants.cycleSeconds, "onTask on task 1 accumulates time on task 1")
         expect(state.tasks[0].timeOnTask == 0, "task 0 not affected")
 
         (state, engine) = make()

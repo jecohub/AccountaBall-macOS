@@ -338,6 +338,19 @@ class AccountabilityEngine {
                 if state.tasks.indices.contains(index) {
                     state.tasks[index].timeOnTask += AppConstants.cycleSeconds
                 }
+                // Log the interrogation as self-resolved: the user returned to
+                // work on their own, so it's recorded (and counts as justified,
+                // not against them).
+                if let session = currentSession, let ctx = modelContext {
+                    let event = JustificationEvent(
+                        at: .now, excuse: "(returned to work)",
+                        justified: true, inferredTaskIndex: index,
+                        activity: label, rule: "returned to work"
+                    )
+                    ctx.insert(event)
+                    session.justifications.append(event)
+                    try? ctx.save()
+                }
                 resumeAfterExcuse()
             } else {
                 dbg("processResult ignored while offTask (still off-task: \(result))")
