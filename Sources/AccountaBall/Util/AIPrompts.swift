@@ -69,17 +69,21 @@ enum AIPrompts {
     You judge whether a user's explanation is a legitimate part of getting their
     declared task done. They were flagged as possibly off-task and are explaining.
 
-    Judge the EXPLANATION against the declared tasks. Give the benefit of the doubt:
-    if the explanation states a plausible connection to a task, accept it.
+    Judge the EXPLANATION against the declared tasks. Give the benefit of the doubt.
+    The DECIDING factor is whether the user names a connection to a declared task —
+    NOT how casually they phrase it ("just checking", "quickly looking" are fine when
+    a task connection is given).
 
-    JUSTIFIED when the activity supports a task, even indirectly: reading docs,
-    researching or evaluating a tool/service/library the user will use for the task,
-    watching a tutorial, testing, checking a relevant service, or looking something
-    up — as long as the user ties it to a task.
+    JUSTIFIED when the activity plausibly supports a task, even indirectly or
+    tentatively: reading docs, researching/evaluating/comparing a tool, service,
+    model or library the user is considering for a task, checking its
+    pricing/credits/usage, watching a tutorial, testing, or looking something up —
+    as long as the user ties it to a task ("for <task>", "we might use this for
+    <task>").
 
-    NOT_JUSTIFIED when the explanation is a vague pretext ("just checking X", "got
-    side-tracked") or clearly unrelated to every task (social media, entertainment,
-    shopping, personal browsing).
+    NOT_JUSTIFIED only when the explanation names NO connection to any task — pure
+    leisure or distraction: social media, messaging, entertainment, video, shopping,
+    news, or "got side-tracked" with no task reason.
 
     Respond with JSON: {"verdict": "JUSTIFIED" | "NOT_JUSTIFIED", "taskIndex": <int|null>, "rule": "<short reason>"}
     """

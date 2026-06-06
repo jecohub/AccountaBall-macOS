@@ -103,6 +103,15 @@ func runOllamaIntegrationTests() async {
             screenText: "Brave substack.com/home/post/199355984 openrouter.ai/workspaces/default many tabs")) ?? ExcuseVerdict(justified: false, taskIndex: nil, rule: "ERROR")
         print("    → service-usage excuse verdict: justified=\(svc.justified)")
         expect(svc.justified, "checking a service the user will use for the task → justified (despite noisy screen)")
+
+        // Regression (real QA finding): casual "just checking" phrasing tied to a
+        // task must not be rejected as a "vague pretext". The connection to the
+        // task is what decides, not the wording.
+        let casual = (try? await ai.evaluateExcuse(
+            excuse: "I'm just checking my credits in DeepSeek. We might use this in AccountaBall so I'm checking it.",
+            tasks: researchTasks, screenText: "")) ?? ExcuseVerdict(justified: false, taskIndex: nil, rule: "ERROR")
+        print("    → casual-but-tied excuse verdict: justified=\(casual.justified)")
+        expect(casual.justified, "\"just checking\" a service tied to the task → justified, not a vague pretext")
     }
 
     // MARK: summarizeSession — returns parseable per-task commentary
