@@ -94,7 +94,9 @@ final class OllamaAIService: AIService {
         let justified = !justifiedRaw.contains("NOT") && justifiedRaw.contains("JUSTIFIED")
         let taskIndex = obj["taskIndex"] as? Int
         let rule = obj["rule"] as? String ?? ""
-        return ExcuseVerdict(justified: justified, taskIndex: justified ? taskIndex : nil, rule: justified ? rule : "")
+        // Keep the model's reason on both verdicts — on a rejection it's the "why"
+        // we surface and record. Only task attribution is dropped when rejected.
+        return ExcuseVerdict(justified: justified, taskIndex: justified ? taskIndex : nil, rule: rule)
     }
 
     func summarizeTask(title: String, context: String, steps: [String], durationSeconds: TimeInterval,

@@ -56,15 +56,16 @@ func runEngineAllowanceTests() async {
         expect(beforeAllowances.isEmpty, "no allowances before handleExcuse")
         expect(beforeKTs.isEmpty, "no knowledge tasks before handleExcuse")
 
-        let justified = await engine.handleExcuse("I'm watching React tutorials on YouTube", tasks: s.activeTasks, screenText: "some screen text")
+        let verdict = await engine.handleExcuse("I'm watching React tutorials on YouTube", tasks: s.activeTasks, screenText: "some screen text")
 
         let events = (try? ctx.fetch(FetchDescriptor<JustificationEvent>())) ?? []
         let kts = (try? ctx.fetch(FetchDescriptor<KnowledgeTask>())) ?? []
         let allowances = (try? ctx.fetch(FetchDescriptor<Allowance>())) ?? []
-        expect(justified, "handleExcuse reports the verdict as justified")
+        expect(verdict.justified, "handleExcuse reports the verdict as justified")
         expect(events.count == 1, "one justification event recorded")
         expect(events.first?.justified == true, "event marked justified")
         expect(events.first?.inferredTaskIndex == 0, "event has inferred task index")
+        expect(events.first?.rule == "watching React tutorials", "event records the model's reason")
         expect(kts.count == 1, "one knowledge task created")
         expect(allowances.count == 1, "one allowance created")
         expect(allowances.first?.rule == "watching React tutorials", "allowance rule stored")

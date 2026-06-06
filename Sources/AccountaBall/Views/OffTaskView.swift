@@ -11,6 +11,7 @@ struct OffTaskView: View {
     @State private var stage: Stage = .asking
     @State private var excuseText = ""
     @State private var isEvaluating = false
+    @State private var reason = ""          // the model's short reason for the verdict
     @State private var timeoutTask: Task<Void, Never>? = nil
 
     // 2-minute window to respond before AccountaBall gives up and minimizes.
@@ -32,6 +33,16 @@ struct OffTaskView: View {
         }
     }
 
+    /// The model's reason for the verdict, surfaced so the user sees *why* —
+    /// "Counts as: researching a tool" / "Flagged as: social media".
+    private var reasonLabel: String {
+        switch stage {
+        case .accepted: return "Counts as: \(reason)"
+        case .rejected: return "Flagged as: \(reason)"
+        case .asking:   return ""
+        }
+    }
+
     var body: some View {
         VStack(spacing: 14) {
             SpeechBubble(text: bubbleText)
@@ -44,6 +55,17 @@ struct OffTaskView: View {
                     .font(.system(size: 38))
             }
             .transition(.opacity)
+
+            // The model's reason for the verdict (the "why"), shown on the
+            // accepted/rejected stages when the model gave one.
+            if stage != .asking, !reason.isEmpty {
+                Text(reasonLabel)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
 
             // Excuse input — only while asking.
             if stage == .asking {
@@ -127,19 +149,19 @@ struct OffTaskView: View {
         Task { @MainActor in
             // Route through the engine so the JustificationEvent is persisted and,
             // when justified, an Allowance + KnowledgeTask link is created.
-            let justified = await engine.handleExcuse(
+            let verdict = await engine.handleExcuse(
                 excuse,
                 tasks: state.activeTasks,
                 screenText: lastScreenText
             )
-            dbg("excuse verdict: \(justified ? "JUSTIFIED" : "NOT_JUSTIFIED")")
             isEvaluating = false
+            reason = verdict.rule
             // The engine no longer flips phase on a verdict — it leaves resuming to
-            // this view so we can show clear accepted/rejected feedback and offer
-            // the "Continue anyway" escape hatch. Show the matching stage; the user
-            // dismisses it (which resumes via the buttons above).
-            withAnimation { stage = justified ? .accepted : .rejected }
-            dbg("verdict shown (\(justified ? "accepted" : "rejected")) — waiting for user to dismiss")
+            // this view so we can show clear accepted/rejected feedback (with the
+            // model's reason) and offer the "Give me 2 minutes" escape hatch. Show
+            // the matching stage; the user dismisses it via the buttons above.
+            withAnimation { stage = verdict.justified ? .accepted : .rejected }
+            dbg("verdict shown (\(verdict.justified ? "accepted" : "rejected"), reason=\"\(verdict.rule)\") — waiting for user to dismiss")
         }
     }
 }

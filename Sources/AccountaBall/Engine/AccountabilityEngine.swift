@@ -545,30 +545,32 @@ class AccountabilityEngine {
 
     // MARK: - v3 excuse resolution
 
-    /// Returns whether the excuse was judged justified (so the UI can show the
-    /// right verdict stage). On a justified verdict the engine records an
-    /// Allowance + KnowledgeTask link. Resuming the session is left to the caller
-    /// (`OffTaskView`) so it can show the verdict stage and offer the "Continue
-    /// anyway" escape hatch on rejection before watching resumes.
+    /// Returns the full verdict (so the UI can show the right stage *and* the
+    /// model's reason). On a justified verdict the engine records an Allowance +
+    /// KnowledgeTask link. Resuming the session is left to the caller
+    /// (`OffTaskView`) so it can show the verdict stage and offer the "Give me 2
+    /// minutes" escape hatch on rejection before watching resumes.
     @MainActor
     @discardableResult
-    func handleExcuse(_ text: String, tasks: [TaskItem], screenText: String) async -> Bool {
+    func handleExcuse(_ text: String, tasks: [TaskItem], screenText: String) async -> ExcuseVerdict {
         let verdict: ExcuseVerdict
         do {
             verdict = try await aiService.evaluateExcuse(excuse: text, tasks: tasks, screenText: screenText)
         } catch {
             dbg("evaluateExcuse failed: \(error)")
-            return false
+            return ExcuseVerdict(justified: false, taskIndex: nil, rule: "")
         }
+        dbg("excuse verdict: \(verdict.justified ? "JUSTIFIED" : "NOT_JUSTIFIED") rule=\"\(verdict.rule)\"")
 
-        // Always log the interrogation
+        // Always log the interrogation, including the model's reason.
         if let session = currentSession, let ctx = modelContext {
             let event = JustificationEvent(
                 at: .now,
                 excuse: text,
                 justified: verdict.justified,
                 inferredTaskIndex: verdict.taskIndex,
-                activity: lastActivityLabel
+                activity: lastActivityLabel,
+                rule: verdict.rule
             )
             ctx.insert(event)
             session.justifications.append(event)
@@ -598,8 +600,9 @@ class AccountabilityEngine {
             }
         }
         // Resuming (or not) is the view's job — see OffTaskView. Returning the
-        // verdict lets it show "Carry on" vs "Get back to work" + escape hatch.
-        return verdict.justified
+        // full verdict lets it show "Carry on" vs "Get back to work", the model's
+        // reason, and the escape hatch.
+        return verdict
     }
 
     @MainActor

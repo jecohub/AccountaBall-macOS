@@ -31,9 +31,10 @@ final class JustificationEvent {  // one per off-task interrogation
     var justified: Bool
     var inferredTaskIndex: Int?    // which task it was judged against
     var activity: String           // AI's short description of the activity
-    init(at: Date, excuse: String, justified: Bool, inferredTaskIndex: Int?, activity: String) {
+    var rule: String = ""          // the model's reason for the verdict (the "why")
+    init(at: Date, excuse: String, justified: Bool, inferredTaskIndex: Int?, activity: String, rule: String = "") {
         self.at = at; self.excuse = excuse; self.justified = justified
-        self.inferredTaskIndex = inferredTaskIndex; self.activity = activity
+        self.inferredTaskIndex = inferredTaskIndex; self.activity = activity; self.rule = rule
     }
 }
 

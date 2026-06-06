@@ -14,6 +14,8 @@ struct ExcuseVerdict: Equatable {
         let justified = !verdict.contains("NOT") && verdict.contains("JUSTIFIED")
         let taskIndex = parts.count > 1 ? Int(parts[1]) : nil
         let rule = parts.count > 2 ? parts[2] : ""
-        return ExcuseVerdict(justified: justified, taskIndex: justified ? taskIndex : nil, rule: justified ? rule : "")
+        // Keep the rule on BOTH verdicts — on a rejection it's the "why" we show
+        // the user and record. Only the task attribution is dropped when rejected.
+        return ExcuseVerdict(justified: justified, taskIndex: justified ? taskIndex : nil, rule: rule)
     }
 }
