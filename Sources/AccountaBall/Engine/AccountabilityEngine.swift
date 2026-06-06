@@ -324,12 +324,24 @@ class AccountabilityEngine {
     }
 
     func processResult(_ result: MultiTaskResult) {
-        // While the off-task prompt is showing, ignore capture results — the
-        // user's excuse (or the 2-minute timeout) decides what happens next.
-        // Otherwise the loop could flip back to .session and dismiss the prompt
-        // before the user answers.
-        guard state.appPhase != .offTask else {
-            dbg("processResult ignored while offTask (result=\(result))")
+        // While the off-task prompt is showing, keep actively checking the screen:
+        // if the user has returned to a declared task, auto-dismiss the prompt and
+        // resume — no excuse needed (deterministic decoding makes a single on-task
+        // read trustworthy). Off-task / done reads are still ignored so the prompt
+        // stays up until the user answers, returns to work, or the 2-min timeout.
+        if state.appPhase == .offTask {
+            if case .onTask(let index, let label) = result {
+                dbg("back on task (\"\(label)\") while prompt up -> auto-resume")
+                lastActivityLabel = label
+                record(taskIndex: index, label: label)
+                state.activeTaskIndex = index
+                if state.tasks.indices.contains(index) {
+                    state.tasks[index].timeOnTask += AppConstants.cycleSeconds
+                }
+                resumeAfterExcuse()
+            } else {
+                dbg("processResult ignored while offTask (still off-task: \(result))")
+            }
             return
         }
 

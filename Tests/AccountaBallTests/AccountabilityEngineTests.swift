@@ -77,11 +77,16 @@ func runAccountabilityEngineTests() {
         engine.processResult(.offTask(label: ""))
         engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .offTask, "two offTask enters offTask phase")
-        // Capture results must be ignored while the excuse prompt is up, so the
-        // prompt isn't dismissed before the user answers.
+        // Still-off-task reads keep the prompt up (the user must answer or return
+        // to work) — they don't escalate further.
+        engine.processResult(.offTask(label: ""))
+        expect(state.appPhase == .offTask, "still-off-task reads keep the prompt up")
+        // But returning to a declared task while the prompt is up auto-dismisses
+        // it and resumes — AccountaBall keeps actively checking the screen.
         engine.processResult(.onTask(index: 0, label: ""))
-        expect(state.appPhase == .offTask, "onTask is ignored while awaiting excuse")
-        expect(state.activeTaskIndex == nil, "onTask does not set active task while offTask")
+        expect(state.appPhase == .session, "returning to a task auto-dismisses the prompt")
+        expect(state.activeTaskIndex == 0, "auto-resume sets the active task")
+        expect(state.ballState == .onTask, "auto-resume restores the on-task ball")
 
         (state, engine) = make()
         engine.processResult(.offTask(label: ""))
