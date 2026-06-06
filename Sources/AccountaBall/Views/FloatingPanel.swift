@@ -54,7 +54,10 @@ class FloatingPanel: NSPanel {
         case .progress:
             setContentSize(clampedToScreen(NSSize(width: 480, height: 420))); center()
         case .aiUnavailable:
-            anchorRightEdge(size: NSSize(width: 320, height: 300))
+            // Centered alert card. The view draws a fixed-width rounded card; the
+            // panel just needs enough room for the tallest hint (the Ollama
+            // setup hint wraps to a few lines) and centers it on screen.
+            setContentSize(clampedToScreen(NSSize(width: 340, height: 380))); center()
         case .complete:
             setContentSize(clampedToScreen(NSSize(width: 600, height: 560))); center()
         }
