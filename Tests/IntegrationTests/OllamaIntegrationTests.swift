@@ -81,6 +81,17 @@ func runOllamaIntegrationTests() async {
             tasks: tasks, screenText: screen)) ?? ExcuseVerdict(justified: true, taskIndex: nil, rule: "ERROR")
         print("    → unrelated excuse verdict: justified=\(unrelated.justified)")
         expect(!unrelated.justified, "unrelated excuse → not justified")
+
+        // Regression (real QA finding): indirect-but-genuine research the user
+        // ties to their task must be justified. The earlier prompt rejected this
+        // as "off-topic research" even though the user explained the connection.
+        let researchTasks = [TaskItem(task: "Debugging AccountaBall v3.1.1",
+                                      context: "Using VS Code, terminal, and notes to fix bugs in Ollama")]
+        let research = (try? await ai.evaluateExcuse(
+            excuse: "I'm learning about a new LLM Odysseus. I need this to improve AccountaBall.",
+            tasks: researchTasks, screenText: "Brave — github.com/pewdiepie-archdaemon/odysseus")) ?? ExcuseVerdict(justified: false, taskIndex: nil, rule: "ERROR")
+        print("    → indirect-research excuse verdict: justified=\(research.justified)")
+        expect(research.justified, "research the user ties to their task → justified")
     }
 
     // MARK: summarizeSession — returns parseable per-task commentary
