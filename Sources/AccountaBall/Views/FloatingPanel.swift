@@ -63,6 +63,14 @@ class FloatingPanel: NSPanel {
         }
     }
 
+    /// The allowance "still counts?" confirm card is shown over the session ball
+    /// but needs far more room than the tiny session widget (130×170) — without
+    /// this it clips the title and buttons. Size it like the other session-area
+    /// prompt cards, anchored near where the ball sits.
+    func resizeForAllowanceConfirm() {
+        anchorRightEdge(size: NSSize(width: 320, height: 320))
+    }
+
     /// Clamp a requested content size to the current screen's visible frame (with
     /// a margin) so a panel can never grow past the display and push controls off
     /// the visible area.

@@ -94,12 +94,26 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         // we leave `.complete` so the next session finalizes too.
         Task { @MainActor in
             var lastPhase: AppPhase = .idle
+            var lastConfirm = false
             var didFinalize = false
             while true {
                 let phase = self.state.appPhase
+                // The allowance "still counts?" card is a sub-state of `.session`
+                // (not its own phase) and renders only there — it needs a bigger
+                // panel than the tiny session widget. Gate on `.session` so the
+                // pending confirm (which is set back in `.setup`) doesn't resize
+                // the setup panel before the card is actually shown.
+                let showConfirm = self.state.pendingAllowanceConfirm != nil && phase == .session
+                if phase != lastPhase || showConfirm != lastConfirm {
+                    if showConfirm {
+                        self.panel?.resizeForAllowanceConfirm()
+                    } else {
+                        self.panel?.resize(for: phase)
+                    }
+                    lastConfirm = showConfirm
+                }
                 if phase != lastPhase {
                     lastPhase = phase
-                    self.panel?.resize(for: phase)
                     if phase == .complete {
                         if !didFinalize {
                             didFinalize = true

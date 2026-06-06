@@ -83,7 +83,7 @@ struct SessionBallView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.9))
+        .background(Color.black)
         .transition(.opacity)
     }
 
