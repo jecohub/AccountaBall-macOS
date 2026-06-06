@@ -45,12 +45,10 @@ class FloatingPanel: NSPanel {
             // "What's up?" card with the two option buttons, near the ball.
             anchorRightEdge(size: NSSize(width: 300, height: 300))
         case .offTask:
-            // A side panel taking ~1/4 of the screen width (not a full-screen takeover).
-            if let vf = NSScreen.main?.visibleFrame {
-                anchorRightEdge(size: NSSize(width: vf.width * 0.25, height: vf.height * 0.6))
-            } else {
-                anchorRightEdge(size: NSSize(width: 360, height: 420))
-            }
+            // Compact centered alert card (the view draws a fixed-width rounded
+            // card that hugs its content). The old quarter-screen side panel left
+            // the small verdict cards — "Carry on", etc. — lost in a black slab.
+            setContentSize(clampedToScreen(NSSize(width: 360, height: 420))); center()
         case .progress:
             setContentSize(clampedToScreen(NSSize(width: 480, height: 420))); center()
         case .aiUnavailable:
