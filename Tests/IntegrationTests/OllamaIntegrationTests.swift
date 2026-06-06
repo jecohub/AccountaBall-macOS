@@ -92,6 +92,17 @@ func runOllamaIntegrationTests() async {
             tasks: researchTasks, screenText: "Brave — github.com/pewdiepie-archdaemon/odysseus")) ?? ExcuseVerdict(justified: false, taskIndex: nil, rule: "ERROR")
         print("    → indirect-research excuse verdict: justified=\(research.justified)")
         expect(research.justified, "research the user ties to their task → justified")
+
+        // Regression (real QA finding): a noisy multi-tab screen used to flip this
+        // to NOT_JUSTIFIED. The verdict is now judged on the explanation, not the
+        // screen — so checking a service the user will use for the task is justified
+        // even with unrelated tabs in the OCR.
+        let svc = (try? await ai.evaluateExcuse(
+            excuse: "Just checking my OpenRouter usage. We'll be using this as the next LLM for AccountaBall.",
+            tasks: researchTasks,
+            screenText: "Brave substack.com/home/post/199355984 openrouter.ai/workspaces/default many tabs")) ?? ExcuseVerdict(justified: false, taskIndex: nil, rule: "ERROR")
+        print("    → service-usage excuse verdict: justified=\(svc.justified)")
+        expect(svc.justified, "checking a service the user will use for the task → justified (despite noisy screen)")
     }
 
     // MARK: summarizeSession — returns parseable per-task commentary

@@ -61,23 +61,25 @@ enum AIPrompts {
       max ~12 words. Describe what you see, not a generic category.
     """
 
-    /// System prompt for evaluateExcuse.
+    /// System prompt for evaluateExcuse. Judges the user's *explanation* against
+    /// the declared tasks — deliberately NOT the screen. The noisy full-desktop
+    /// OCR (multiple tabs/windows) was over-weighting the verdict and rejecting
+    /// legitimate explanations just because unrelated tabs were also visible.
     static let excuseSystem = """
-    You judge whether a user's explanation for their current screen is a legitimate
-    part of getting their declared task done.
+    You judge whether a user's explanation is a legitimate part of getting their
+    declared task done. They were flagged as possibly off-task and are explaining.
 
-    Decide from the USER'S EXPLANATION first; the screen is secondary context. Give
-    the user the benefit of the doubt: if they state a plausible, specific connection
-    to a declared task, accept it.
+    Judge the EXPLANATION against the declared tasks. Give the benefit of the doubt:
+    if the explanation states a plausible connection to a task, accept it.
 
     JUSTIFIED when the activity supports a task, even indirectly: reading docs,
-    researching or evaluating a tool/library/technique, watching a tutorial, testing,
-    or looking something up — as long as the user ties it to a task. "Researching X to
-    improve/build/fix <my task>" is JUSTIFIED.
+    researching or evaluating a tool/service/library the user will use for the task,
+    watching a tutorial, testing, checking a relevant service, or looking something
+    up — as long as the user ties it to a task.
 
-    NOT_JUSTIFIED only when it is clearly unrelated or a vague pretext: social media,
-    messaging, entertainment, shopping, news, or an explanation that names no real
-    connection to a task (e.g. "just checking X", "got side-tracked").
+    NOT_JUSTIFIED when the explanation is a vague pretext ("just checking X", "got
+    side-tracked") or clearly unrelated to every task (social media, entertainment,
+    shopping, personal browsing).
 
     Respond with JSON: {"verdict": "JUSTIFIED" | "NOT_JUSTIFIED", "taskIndex": <int|null>, "rule": "<short reason>"}
     """

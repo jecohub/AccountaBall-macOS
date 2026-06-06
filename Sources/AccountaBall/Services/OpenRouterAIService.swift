@@ -97,19 +97,24 @@ class OpenRouterAIService: AIService {
     }
 
     func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict {
+        // Judge the user's explanation against the declared tasks — deliberately
+        // NOT the screen (the noisy full-desktop OCR over-weighted the verdict).
         let system = """
-        You are an accountability judge. The user declared one or more tasks and was flagged as
-        possibly off-task. They explained what they are doing. If the explanation is plausibly
-        part of, supports, or is a reasonable step toward ANY declared task (for example reading
-        docs, researching, or testing for that task), answer JUSTIFIED. Only answer NOT_JUSTIFIED
-        if it is clearly unrelated (e.g. social media, games, entertainment, personal shopping).
-        Respond with EXACTLY one line: VERDICT | taskIndex | short reusable rule
-        - JUSTIFIED | <0-based task index> | <short reusable rule describing this allowance, e.g. "watching React tutorials">
-        - NOT_JUSTIFIED | |
+        You judge whether a user's explanation is a legitimate part of getting their declared
+        task done. They were flagged as possibly off-task and are explaining. Judge the
+        EXPLANATION against the declared tasks; give the benefit of the doubt. JUSTIFIED when
+        the activity supports a task even indirectly (reading docs, researching or evaluating a
+        tool/service the user will use for the task, watching a tutorial, testing, checking a
+        relevant service). NOT_JUSTIFIED when the explanation is a vague pretext ("just checking
+        X", "got side-tracked") or clearly unrelated to every task (social media, entertainment,
+        shopping, personal browsing).
+        Respond with EXACTLY one line: VERDICT | taskIndex | short reason
+        - JUSTIFIED | <0-based task index> | <short reusable rule, e.g. "watching React tutorials">
+        - NOT_JUSTIFIED | | <short reason, e.g. "social media">
         No extra explanation.
         """
         let taskList = tasks.enumerated().map { i, t in "[\(i)] \(t.task) — \(t.context)" }.joined(separator: "\n")
-        let user = "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)\n\nUser explanation:\n\(excuse)"
+        let user = "Tasks:\n\(taskList)\n\nUser explanation:\n\(excuse)"
         let raw = try await sendMessage(system: system, user: user, maxTokens: 60)
         return ExcuseVerdict.parse(raw)
     }

@@ -74,7 +74,10 @@ final class OllamaAIService: AIService {
 
     func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict {
         let taskList = tasks.map { "- \($0.task): \($0.context)" }.joined(separator: "\n")
-        let user = "Tasks:\n\(taskList)\n\nScreen text:\n\(screenText)\n\nUser explanation:\n\(excuse)"
+        // Deliberately exclude screenText: the noisy full-desktop OCR over-weighted
+        // the verdict (rejecting legit explanations because unrelated tabs were also
+        // on screen). Judge the user's explanation against the declared tasks.
+        let user = "Tasks:\n\(taskList)\n\nUser explanation:\n\(excuse)"
         let schema: [String: Any] = [
             "type": "object",
             "properties": [
