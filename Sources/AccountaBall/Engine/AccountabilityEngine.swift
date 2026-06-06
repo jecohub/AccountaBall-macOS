@@ -49,9 +49,9 @@ class AccountabilityEngine {
     }
 
     func start() {
-        captureTask = captureService.startLoop(interval: AppConstants.cycleSeconds, panelTitle: "AccountaBall") { [weak self] image in
+        captureTask = captureService.startLoop(interval: AppConstants.cycleSeconds, panelTitle: "AccountaBall") { [weak self] frame in
             guard let self else { return }
-            let text = await self.ocrService.extractText(from: image)
+            let text = await self.screenText(from: frame)
             guard !text.isEmpty else { return }
             self.lastScreenText = text
             let activeTasks = self.state.activeTasks
@@ -87,6 +87,22 @@ class AccountabilityEngine {
         captureTask?.cancel()
         captureTask = nil
         suspicionCount = 0
+    }
+
+    /// Build the text we classify from a capture tick: the focused window in full
+    /// (primary), plus a truncated pass over the whole screen as lighter
+    /// peripheral context (so a relevant reference in another window still
+    /// registers). With no focused window, the full screen is the only signal.
+    func screenText(from frame: CapturedFrame) async -> String {
+        guard let focused = frame.focused else {
+            return await ocrService.extractText(from: frame.full)
+        }
+        let primary = await ocrService.extractText(from: focused)
+        let full = await ocrService.extractText(from: frame.full)
+        let light = String(full.prefix(AppConstants.peripheralScreenChars))
+        if primary.isEmpty { return light }
+        if light.isEmpty { return primary }
+        return "Active window:\n\(primary)\n\nAlso visible on screen:\n\(light)"
     }
 
     /// Resume watching after an off-task prompt.

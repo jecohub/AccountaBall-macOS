@@ -2,6 +2,14 @@ import Foundation
 import ScreenCaptureKit
 import AppKit
 
+/// One capture tick: the frontmost window (primary signal — the content the user
+/// is actually in) plus the whole display (a lighter, peripheral signal). When no
+/// focused window is identified, `focused` is nil and `full` is the only signal.
+struct CapturedFrame {
+    let focused: CGImage?
+    let full: CGImage
+}
+
 class ScreenCaptureService {
     func requestPermission() async -> Bool {
         do {
@@ -12,7 +20,12 @@ class ScreenCaptureService {
         }
     }
 
-    func captureScreen(excluding panelTitle: String? = nil) async throws -> CGImage? {
+    /// Capture both the frontmost app's focused window (primary) and the full
+    /// display (lighter secondary). OCR reads the focused window in full and uses
+    /// a truncated pass over the display for peripheral context — so the active
+    /// content drives classification but a relevant reference in another window
+    /// still registers.
+    func captureFrame(excluding panelTitle: String? = nil) async throws -> CapturedFrame? {
         let content = try await SCShareableContent.excludingDesktopWindows(
             false,
             onScreenWindowsOnly: true
@@ -20,40 +33,33 @@ class ScreenCaptureService {
 
         guard let display = content.displays.first else { return nil }
 
-        // Prefer the frontmost app's focused window so OCR reads the content the
-        // user is actually working in (e.g. the page inside the browser) instead
-        // of the entire desktop — the menu bar, dock, every other window, and all
-        // the browser chrome/tabs that drown out the real signal. Fall back to the
-        // whole display if we can't identify a suitable window.
+        // Full display (lighter secondary signal), excluding our own panel.
+        let excludedWindows = panelTitle.map { title in
+            content.windows.filter { $0.title == title }
+        } ?? []
+        let fullConfig = SCStreamConfiguration()
+        fullConfig.width = Int(display.width)
+        fullConfig.height = Int(display.height)
+        fullConfig.captureResolution = .nominal
+        guard let full = try? await SCScreenshotManager.captureImage(
+            contentFilter: SCContentFilter(display: display, excludingWindows: excludedWindows),
+            configuration: fullConfig
+        ) else { return nil }
+
+        // Frontmost window (primary signal), if we can identify one.
+        var focused: CGImage? = nil
         if let window = frontmostWindow(in: content, excludingTitle: panelTitle) {
             let config = SCStreamConfiguration()
             config.width = Int(window.frame.width)
             config.height = Int(window.frame.height)
             config.captureResolution = .nominal
-            if let image = try? await SCScreenshotManager.captureImage(
+            focused = try? await SCScreenshotManager.captureImage(
                 contentFilter: SCContentFilter(desktopIndependentWindow: window),
                 configuration: config
-            ) {
-                return image
-            }
-            // fall through to full-display capture on failure
+            )
         }
 
-        let excludedWindows = panelTitle.map { title in
-            content.windows.filter { $0.title == title }
-        } ?? []
-
-        let filter = SCContentFilter(display: display, excludingWindows: excludedWindows)
-
-        let config = SCStreamConfiguration()
-        config.width = Int(display.width)
-        config.height = Int(display.height)
-        config.captureResolution = .nominal
-
-        return try await SCScreenshotManager.captureImage(
-            contentFilter: filter,
-            configuration: config
-        )
+        return CapturedFrame(focused: focused, full: full)
     }
 
     /// The frontmost application's main content window (largest on-screen window
@@ -77,12 +83,12 @@ class ScreenCaptureService {
     func startLoop(
         interval: TimeInterval = 5,
         panelTitle: String? = nil,
-        onCapture: @escaping (CGImage) async -> Void
+        onCapture: @escaping (CapturedFrame) async -> Void
     ) -> Task<Void, Never> {
         Task {
             while !Task.isCancelled {
-                if let image = try? await captureScreen(excluding: panelTitle) {
-                    await onCapture(image)
+                if let frame = try? await captureFrame(excluding: panelTitle) {
+                    await onCapture(frame)
                 }
                 try? await Task.sleep(for: .seconds(interval))
             }

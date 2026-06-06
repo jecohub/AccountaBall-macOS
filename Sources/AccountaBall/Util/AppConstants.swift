@@ -10,6 +10,11 @@ enum AppConstants {
     /// during an off-task prompt) without hammering the model.
     static let cycleSeconds: TimeInterval = 3
 
+    /// How many characters of the full-screen OCR to keep as the lighter,
+    /// peripheral signal alongside the focused window's full text. Caps the
+    /// secondary so the whole desktop can't drown out the active content.
+    static let peripheralScreenChars: Int = 500
+
     /// Grace breather granted by the off-task "Continue anyway" escape hatch.
     /// Longer than the default settle window so a user who chooses to keep going
     /// after a rejected excuse isn't immediately re-nagged.
