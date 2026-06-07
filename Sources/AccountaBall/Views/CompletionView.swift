@@ -48,7 +48,7 @@ struct CompletionView: View {
                     VStack(spacing: 24) {
                         Text("🏀")
                             .font(.system(size: 60))
-                        Text("Session Complete!")
+                        Text("Session complete")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundStyle(.white)
 

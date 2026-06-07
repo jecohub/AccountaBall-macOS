@@ -15,7 +15,7 @@ struct TaskSetupView: View {
                 // Header with mini ball
                 HStack {
                     BasketballView(size: 36, showFace: .happy)
-                    Text("What are we conquering today?")
+                    Text("What are you working on today?")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -67,7 +67,7 @@ struct TaskSetupView: View {
                 .padding(.top, 8)
 
                 // Let's go button — pinned below the scroll area, always reachable.
-                Button("Let's go!") { handleLetsGo() }
+                Button("Start session") { handleLetsGo() }
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(!hasAtLeastOneCompleteRow)
                     .opacity(hasAtLeastOneCompleteRow ? 1 : 0.4)
