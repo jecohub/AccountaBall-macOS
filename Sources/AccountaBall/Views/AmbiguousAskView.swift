@@ -9,6 +9,10 @@ struct AmbiguousAskView: View {
     var engine: AccountabilityEngine
 
     @State private var reason = ""
+    @State private var timeoutTask: Task<Void, Never>? = nil
+
+    // 2-minute window to respond before AccountaBall gives up and resumes watching.
+    private let responseWindow: Duration = .seconds(120)
 
     private var taskLabel: String { state.activeTasks.first?.task ?? "your task" }
 
@@ -30,17 +34,19 @@ struct AmbiguousAskView: View {
                 .background(Color.white.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .frame(maxWidth: .infinity)
-                .onSubmit { engine.acceptAmbiguous(reason: reason) }
+                .onSubmit { timeoutTask?.cancel(); engine.acceptAmbiguous(reason: reason) }
 
             VStack(spacing: 8) {
                 Button("Yes, it's related") {
                     dbg("ambiguous accepted (reason=\"\(reason)\")")
+                    timeoutTask?.cancel()
                     engine.acceptAmbiguous(reason: reason)
                 }
                 .buttonStyle(PrimaryButtonStyle())
 
                 Button("No, I drifted") {
                     dbg("ambiguous rejected -> confirmed drift")
+                    timeoutTask?.cancel()
                     engine.rejectAmbiguous()
                 }
                 .font(.system(size: 13))
@@ -59,5 +65,22 @@ struct AmbiguousAskView: View {
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { startWindow() }
+    }
+
+    /// (Re)start the 2-minute response window. An ignored ask is logged honestly as
+    /// an auto-return (not a drift), then watching resumes.
+    private func startWindow() {
+        timeoutTask?.cancel()
+        timeoutTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: responseWindow)
+            } catch {
+                return  // cancelled (e.g. the user answered) — do NOT resume
+            }
+            guard !Task.isCancelled, state.appPhase == .ambiguous else { return }
+            dbg("ambiguous 2-min timeout fired -> auto-return")
+            engine.autoReturnFromPrompt()
+        }
     }
 }

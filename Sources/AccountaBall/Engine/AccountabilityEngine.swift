@@ -151,6 +151,15 @@ class AccountabilityEngine {
         }
     }
 
+    /// A prompt (ambiguous or off-task) was ignored past the response window. Record
+    /// it honestly as an auto-return (not a drift) and resume watching.
+    @MainActor
+    func autoReturnFromPrompt() {
+        logCheck(kind: "auto-return", justified: true, activity: lastActivityLabel,
+                 excuse: "(no response)", rule: "resumed watching", taskIndex: nil)
+        resumeAfterExcuse()
+    }
+
     private func clearActivityGrace() {
         graceActivity = nil
         graceUntil = .distantPast

@@ -452,6 +452,42 @@ func runEngineSessionTests() {
         }
     }
 
+    // Task 10: a prompt ignored past the response window records an honest
+    // kind="auto-return" row (justified, NOT a drift) and resumes watching.
+    suite("EngineAutoReturnFromPrompt") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+        let state = AppState()
+        state.tasks = [TaskItem(task: "write proposal", context: "")]
+        state.startSession()
+        let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+        engine.modelContext = ctx
+        engine.beginSession(tasks: state.tasks)
+
+        // Arrange WITHOUT logging a drift: a single off-task read inside the settle
+        // window (the default after beginSession) sets lastActivityLabel and bumps
+        // suspicion to 1 only — it does NOT transition or log a drift. Then put the
+        // app in the .offTask prompt phase directly.
+        engine.processResult(.offTask(label: "Reddit"))
+        expect(engine.driftCount == 0, "arrange: single in-settle off read logs no drift")
+        state.appPhase = .offTask
+
+        engine.autoReturnFromPrompt()
+        expect(state.appPhase == .session, "auto-return resumes session")
+        expect(engine.driftCount == 0, "auto-return is logged, not a drift")
+        let kinds = engine.currentSession?.justifications.map { $0.kind } ?? []
+        expect(kinds.contains("auto-return"), "an auto-return row exists")
+        let autoReturn = engine.currentSession?.justifications.first { $0.kind == "auto-return" }
+        expect(autoReturn?.justified == true, "auto-return is justified")
+        expect(autoReturn?.rule == "resumed watching", "auto-return uses rule=resumed watching")
+        expect(autoReturn?.activity == "Reddit", "auto-return carries the last activity label")
+    }
+
     suite("EngineSessionTests_noContextIsNoop") {
         // Engine built without a modelContext (test stub path) should not crash
         // when beginSession/record/endSession are called.

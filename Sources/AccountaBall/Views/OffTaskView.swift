@@ -67,10 +67,8 @@ struct OffTaskView: View {
                 return  // cancelled (e.g. the user chose) — do NOT resume
             }
             guard !Task.isCancelled, state.appPhase == .offTask else { return }
-            dbg("offtask 2-min timeout fired -> resume")
-            // TASK 10 will replace this with engine.autoReturnFromPrompt() (logs an
-            // auto-return row). For now, resume so the build compiles and the timeout works.
-            engine.resumeAfterExcuse()
+            dbg("offtask 2-min timeout fired -> auto-return")
+            engine.autoReturnFromPrompt()
         }
     }
 }
