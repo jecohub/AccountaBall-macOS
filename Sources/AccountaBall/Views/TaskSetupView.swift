@@ -52,6 +52,20 @@ struct TaskSetupView: View {
                 }
                 .frame(maxHeight: .infinity)
 
+                // Commitment block — the pre-commitment drift limit. Always enabled,
+                // independent of row validation. Pinned above the start button so it's
+                // the last thing seen before committing.
+                HStack(spacing: 8) {
+                    Text("Drift limit").foregroundStyle(.white.opacity(0.8))
+                    Stepper(value: $state.driftLimit, in: 1...10) {
+                        Text("\(state.driftLimit)").monospacedDigit().foregroundStyle(.white)
+                    }
+                    Text("times before it counts").font(.system(size: 12)).foregroundStyle(.white.opacity(0.5))
+                }
+                .font(.system(size: 13))
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+
                 // Let's go button — pinned below the scroll area, always reachable.
                 Button("Let's go!") { handleLetsGo() }
                     .buttonStyle(PrimaryButtonStyle())
