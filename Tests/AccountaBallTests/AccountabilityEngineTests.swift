@@ -2,6 +2,12 @@ import Foundation
 import SwiftData
 @testable import AccountaBall
 
+/// Mutable clock holder so a `now` closure can read an updatable time from
+/// inside nested test scopes (the engine captures the Box, the test mutates it).
+private final class Box {
+    var now = Date()
+}
+
 private class MultiMockAI: AIService {
     var nextResult: MultiTaskResult = .offTask(label: "")
     func classify(task: String, screenText: String) async throws -> BallState { .onTask }
@@ -357,6 +363,92 @@ func runEngineSessionTests() {
             let rules = engine.allowanceRulesByIndex(for: state.activeTasks)
             expect(rules[0]?.contains("budget for the deck") == true, "accept creates an allowance with the rule on task 0")
             expect(state.appPhase == .session, "accept resumes the session")
+        }
+    }
+
+    // Task 7: timed 5-minute break. takeBreak() returns to .session and goes
+    // quiet — off reads during the window neither prompt nor log a drift. After
+    // the window elapses, normal suspicion accrual resumes. Completion is still
+    // honored during a break, and returning to work early credits on-task time.
+    suite("EngineTimedBreak") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+
+        @MainActor
+        func makeEngine() -> (AppState, AccountabilityEngine, Box) {
+            let state = AppState()
+            state.tasks = [TaskItem(task: "write proposal", context: "")]
+            state.startSession()
+            let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+            engine.modelContext = ctx
+            let box = Box()
+            engine.now = { box.now }
+            engine.beginSession(tasks: state.tasks)
+            return (state, engine, box)
+        }
+
+        // 1. During a break: two off reads neither prompt nor log a drift, even
+        //    past the settle window.
+        do {
+            let (state, engine, box) = makeEngine()
+            engine.takeBreak()
+            expect(state.appPhase == .session, "break returns to session")
+            // Advance past the settle window but still well within the 5-min break
+            // so the break (not the settle window) is what suppresses.
+            box.now = box.now.addingTimeInterval(engine.settleWindow + 1)
+            engine.processResult(.offTask(label: "YouTube"))
+            engine.processResult(.offTask(label: "YouTube"))
+            expect(state.appPhase == .session, "no prompt during break")
+            expect(engine.driftCount == 0, "no drift logged during break")
+        }
+
+        // 2. breakSecondsRemaining is non-nil (~breakSeconds) right after takeBreak,
+        //    nil once the break elapses.
+        do {
+            let (_, engine, box) = makeEngine()
+            engine.takeBreak()
+            if let rem = engine.breakSecondsRemaining {
+                expect(rem > AppConstants.breakSeconds - 1 && rem <= AppConstants.breakSeconds,
+                       "breakSecondsRemaining ~breakSeconds right after takeBreak")
+            } else {
+                expect(false, "breakSecondsRemaining non-nil during the break")
+            }
+            box.now = box.now.addingTimeInterval(AppConstants.breakSeconds + 1)
+            expect(engine.breakSecondsRemaining == nil, "breakSecondsRemaining nil after the break elapses")
+        }
+
+        // 3. After the break elapses, normal behavior resumes (suspicion accrues
+        //    again, prompting on the second off read).
+        do {
+            let (state, engine, box) = makeEngine()
+            engine.takeBreak()
+            box.now = box.now.addingTimeInterval(AppConstants.breakSeconds + 1)
+            engine.processResult(.offTask(label: "YouTube"))
+            engine.processResult(.offTask(label: "YouTube"))
+            expect(state.appPhase == .offTask, "normal prompting resumes after the break elapses")
+            expect(engine.driftCount == 1, "a drift is logged after the break elapses")
+        }
+
+        // 4. Completion is still honored during a break.
+        do {
+            let (state, engine, _) = makeEngine()
+            engine.takeBreak()
+            engine.processResult(.done(index: 0, label: "shipped it"))
+            expect(state.tasks[0].isComplete == true, "completion honored during a break")
+        }
+
+        // 5. Returning to work early during a break credits on-task time.
+        do {
+            let (state, engine, _) = makeEngine()
+            engine.takeBreak()
+            engine.processResult(.onTask(index: 0, label: "back to it"))
+            expect(state.tasks[0].timeOnTask == AppConstants.cycleSeconds, "early return-to-work during break credits one cycle")
+            expect(state.activeTaskIndex == 0, "early return sets active task")
         }
     }
 

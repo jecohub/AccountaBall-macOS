@@ -27,6 +27,13 @@ class AccountabilityEngine {
     private var graceUntil: Date = .distantPast
     private var inActivityGrace: Bool { graceActivity != nil && now() < graceUntil }
 
+    /// Opt-in timed break (chosen on a confirmed drift). While on break the ball
+    /// goes fully quiet: no prompting, no suspicion bumps, for any activity —
+    /// broader than the activity-scoped grace. Monitoring resumes silently when
+    /// the window elapses.
+    private var breakUntil: Date = .distantPast
+    private var onBreak: Bool { now() < breakUntil }
+
     // v3 — persistence
     var modelContext: ModelContext?
     var currentSession: WorkSession?
@@ -147,6 +154,23 @@ class AccountabilityEngine {
     private func clearActivityGrace() {
         graceActivity = nil
         graceUntil = .distantPast
+    }
+
+    /// User chose the timed break on a confirmed drift. Ball goes quiet; monitoring
+    /// resumes silently when the window elapses.
+    @MainActor
+    func takeBreak() {
+        breakUntil = now().addingTimeInterval(AppConstants.breakSeconds)
+        suspicionCount = 0
+        state.ballState = .onTask
+        state.appPhase = .session
+        resetSettleWindow()
+        dbg("timed break started (+\(Int(AppConstants.breakSeconds))s)")
+    }
+
+    /// Seconds left on the current break, or nil if not on one (for the UI countdown).
+    var breakSecondsRemaining: TimeInterval? {
+        onBreak ? breakUntil.timeIntervalSince(now()) : nil
     }
 
     /// Two activity labels refer to the same on-screen activity. Case/whitespace-
@@ -410,6 +434,26 @@ class AccountabilityEngine {
             return
         }
 
+        // Timed break: the ball is quiet for every kind of read. Still honor
+        // completion, and credit on-task time if the user returns early — but
+        // never prompt and never bump suspicion until the window elapses.
+        if onBreak {
+            switch result {
+            case .done(let index, let label):
+                completeTask(index: index, label: label)
+            case .onTask(let index, let label):
+                lastActivityLabel = label
+                record(taskIndex: index, label: label)
+                state.activeTaskIndex = index
+                if state.tasks.indices.contains(index) {
+                    state.tasks[index].timeOnTask += AppConstants.cycleSeconds
+                }
+            case .offTask, .ambiguous:
+                break
+            }
+            return
+        }
+
         switch result {
         case .onTask(let index, let label):
             lastActivityLabel = label
@@ -468,14 +512,22 @@ class AccountabilityEngine {
             }
 
         case .done(let index, let label):
-            lastActivityLabel = label
-            record(taskIndex: index, label: label)
-            stop()
-            state.completeTaskAt(index: index)
-            // Fire-and-forget — don't block the completion animation.
-            Task { [weak self] in
-                await self?.summarizeCompletion(taskIndex: index)
-            }
+            completeTask(index: index, label: label)
+        }
+    }
+
+    /// Mark a task complete from a `.done` read. Shared by the normal switch
+    /// branch and the break-suppression guard so completion never diverges
+    /// between the two paths.
+    @MainActor
+    private func completeTask(index: Int, label: String) {
+        lastActivityLabel = label
+        record(taskIndex: index, label: label)
+        stop()
+        state.completeTaskAt(index: index)
+        // Fire-and-forget — don't block the completion animation.
+        Task { [weak self] in
+            await self?.summarizeCompletion(taskIndex: index)
         }
     }
 
