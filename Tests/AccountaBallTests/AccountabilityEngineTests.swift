@@ -259,6 +259,37 @@ func runEngineSessionTests() {
         expect(engine.driftCount == 1, "still-off reads while prompt is up do not re-log a drift")
     }
 
+    suite("EngineReturnToWorkDoesNotInflateDrift") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+        let state = AppState()
+        state.tasks = [TaskItem(task: "write proposal", context: "")]
+        state.startSession()
+        let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+        engine.modelContext = ctx
+        engine.beginSession(tasks: state.tasks)
+        engine.resetSettleWindowToPast()
+
+        // Drift into .offTask (two off reads -> confirmed drift, prompt up).
+        engine.processResult(.offTask(label: "YouTube"))
+        engine.processResult(.offTask(label: "YouTube"))
+        expect(engine.driftCount == 1, "entering offTask logs one confirmed drift")
+        expect(state.appPhase == .offTask, "phase is offTask while prompt is up")
+
+        // User returns to work on their own while the prompt is showing.
+        engine.processResult(.onTask(index: 0, label: "back to it"))
+
+        expect(engine.driftCount == 1, "returning to work does not inflate drift count")
+        expect(engine.currentSession?.justifications.contains { $0.kind == "auto-return" } == true,
+               "returned-to-work event is recorded with kind auto-return")
+        expect(state.appPhase == .session, "auto-resumed back to session")
+    }
+
     suite("EngineSessionTests_noContextIsNoop") {
         // Engine built without a modelContext (test stub path) should not crash
         // when beginSession/record/endSession are called.

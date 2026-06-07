@@ -391,7 +391,7 @@ class AccountabilityEngine {
                     let event = JustificationEvent(
                         at: .now, excuse: "(returned to work)",
                         justified: true, inferredTaskIndex: index,
-                        activity: label, rule: "returned to work"
+                        activity: label, rule: "returned to work", kind: "auto-return"
                     )
                     ctx.insert(event)
                     session.justifications.append(event)
