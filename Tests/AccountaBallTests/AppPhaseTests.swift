@@ -7,6 +7,7 @@ func runAppPhaseTests() {
         expect(AppPhase.welcome != .setup, "welcome != setup")
         expect(AppPhase.setup != .session, "setup != session")
         expect(AppPhase.session != .offTask, "session != offTask")
+        expect(AppPhase.ambiguous != .offTask, "ambiguous != offTask")
         expect(AppPhase.offTask != .progress, "offTask != progress")
         expect(AppPhase.progress != .complete, "progress != complete")
         expect(AppPhase.idle != .complete, "idle != complete (non-adjacent)")
@@ -21,6 +22,7 @@ func runAppPhaseTests() {
             case .setup:    return "setup"
             case .session:  return "session"
             case .whatsUp:  return "whatsUp"
+            case .ambiguous: return "ambiguous"
             case .offTask:  return "offTask"
             case .progress: return "progress"
             case .complete: return "complete"

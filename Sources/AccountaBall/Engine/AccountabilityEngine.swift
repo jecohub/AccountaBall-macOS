@@ -32,6 +32,11 @@ class AccountabilityEngine {
     var currentSession: WorkSession?
     private(set) var lastActivityLabel: String = ""
 
+    /// Activities we've already raised an ambiguous "is this related?" ask about
+    /// this session. AMBIGUOUS asks ONCE per activity — once answered (or matched
+    /// to a grace), the same screen stays silent. Reset on `beginSession`.
+    private var askedActivities: Set<String> = []
+
     /// Confirmed drifts this session = off-task JustificationEvents. Derived so it
     /// can never desync from the record the recap shows.
     var driftCount: Int {
@@ -255,6 +260,7 @@ class AccountabilityEngine {
         modelContext?.insert(session)
         try? modelContext?.save()
         currentSession = session
+        askedActivities = []
         resetSettleWindow()
     }
 
@@ -415,9 +421,23 @@ class AccountabilityEngine {
                 state.tasks[index].timeOnTask += AppConstants.cycleSeconds  // one capture cycle
             }
 
-        case .ambiguous:
-            // Phase 1 Task 6 replaces this stub with the real AMBIGUOUS handling.
-            break
+        case .ambiguous(let label):
+            // "Honestly can't tell." Not a confirmed drift — reset suspicion, then
+            // ask ONCE per activity (and stay silent if a grace already covers it).
+            lastActivityLabel = label
+            record(taskIndex: nil, label: label)
+            suspicionCount = 0   // ambiguous is not a confirmed drift
+            state.activeTaskIndex = nil
+            let key = label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if askedActivities.contains(key) || (inActivityGrace && Self.activityMatches(label, graceActivity ?? "")) {
+                dbg("ambiguous already asked / in grace (\"\(label)\") — silent")
+                return
+            }
+            guard !inSettleWindow, state.appPhase == .session else { return }
+            askedActivities.insert(key)
+            dbg("ambiguous — raising one calm ask for \"\(label)\"")
+            state.ballState = .offTask
+            state.appPhase = .ambiguous
 
         case .offTask(let label):
             lastActivityLabel = label
@@ -618,6 +638,54 @@ class AccountabilityEngine {
             summary: recap.summary, steps: storedSteps,
             duration: duration, comparison: recap.comparison
         )
+    }
+
+    // MARK: - Phase 1 AMBIGUOUS resolution (ask once; accept/reject)
+
+    /// The user said the ambiguous activity IS related to their work. We take their
+    /// word (no AI gate): create an allowance so we don't re-ask, log a justified
+    /// `kind="ambiguous"` check, then resume the session. An empty reason falls
+    /// back to the activity label as the allowance rule.
+    @MainActor
+    func acceptAmbiguous(reason: String) {
+        let label = lastActivityLabel
+        let rule = reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? label : reason
+        let taskIndex = state.tasks.firstIndex(where: { !$0.isComplete })   // the task the ask referenced
+        logCheck(kind: "ambiguous", justified: true, activity: label, excuse: reason, rule: rule, taskIndex: taskIndex)
+        if let idx = taskIndex { createAllowance(rule: rule, forTaskIndex: idx) }
+        resumeAfterExcuse()
+    }
+
+    /// The user said they drifted. Log a confirmed off-task drift (driftCount++),
+    /// then show the OFF break/resume card.
+    @MainActor
+    func rejectAmbiguous() {
+        logCheck(kind: "offtask", justified: false, activity: lastActivityLabel,
+                 excuse: "(drifted)", rule: "off-task", taskIndex: nil)
+        state.ballState = .offTask
+        state.appPhase = .offTask
+    }
+
+    /// Find-or-create the KnowledgeTask for a declared task and append an Allowance
+    /// carrying `rule`, so future classification cycles treat this activity as
+    /// allowed. Shared by `handleExcuse` (justified verdict) and `acceptAmbiguous`.
+    @MainActor
+    private func createAllowance(rule: String, forTaskIndex idx: Int) {
+        guard let ctx = modelContext, state.tasks.indices.contains(idx) else { return }
+        let normalized = TaskMatcher.normalize(state.tasks[idx].task)
+        let existing = (try? ctx.fetch(FetchDescriptor<KnowledgeTask>(
+            predicate: #Predicate { $0.normalizedTitle == normalized })))?.first
+        let kt = existing ?? KnowledgeTask(normalizedTitle: normalized, lastCompletedAt: .now)
+        if existing == nil {
+            kt.originalTitles = [state.tasks[idx].task]
+            ctx.insert(kt)
+        } else if !kt.originalTitles.contains(state.tasks[idx].task) {
+            kt.originalTitles.append(state.tasks[idx].task)
+        }
+        let allowance = Allowance(rule: rule, createdAt: .now)
+        ctx.insert(allowance)
+        kt.allowances.append(allowance)
+        try? ctx.save()
     }
 
     // MARK: - v3 excuse resolution

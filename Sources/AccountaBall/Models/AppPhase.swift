@@ -4,6 +4,7 @@ enum AppPhase: Equatable {
     case setup
     case session
     case whatsUp
+    case ambiguous
     case offTask
     case progress
     case complete

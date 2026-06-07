@@ -44,6 +44,10 @@ class FloatingPanel: NSPanel {
         case .whatsUp:
             // "What's up?" card with the two option buttons, near the ball.
             anchorRightEdge(size: NSSize(width: 300, height: 300))
+        case .ambiguous:
+            // Same sizing as .offTask — Task 8's AmbiguousAskView is a comparable
+            // centered alert card.
+            setContentSize(clampedToScreen(NSSize(width: 360, height: 420))); center()
         case .offTask:
             // Compact centered alert card (the view draws a fixed-width rounded
             // card that hugs its content). The old quarter-screen side panel left

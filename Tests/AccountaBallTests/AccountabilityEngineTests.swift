@@ -290,6 +290,76 @@ func runEngineSessionTests() {
         expect(state.appPhase == .session, "auto-resumed back to session")
     }
 
+    // Task 6: AMBIGUOUS ask-once flow. An ambiguous read resets suspicion (not a
+    // confirmed drift), raises ONE calm ask, dedupes by activity, and resolves via
+    // accept (-> allowance, no drift) or reject (-> confirmed drift).
+    suite("EngineAmbiguousAskOnce") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+
+        @MainActor
+        func makeEngine() -> (AppState, AccountabilityEngine) {
+            let state = AppState()
+            state.tasks = [TaskItem(task: "build the deck", context: "")]
+            state.startSession()
+            let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+            engine.modelContext = ctx
+            engine.beginSession(tasks: state.tasks)
+            engine.resetSettleWindowToPast()
+            return (state, engine)
+        }
+
+        // 1. First ambiguous read raises one calm ask, and is NOT a confirmed drift.
+        do {
+            let (state, engine) = makeEngine()
+            engine.processResult(.ambiguous(label: "Excel budget sheet"))
+            expect(state.appPhase == .ambiguous, "first ambiguous read raises the calm ask (.ambiguous phase)")
+            expect(engine.driftCount == 0, "ambiguous is not a confirmed drift")
+        }
+
+        // 2. Ask once: after resuming, the SAME ambiguous label is not re-asked.
+        do {
+            let (state, engine) = makeEngine()
+            engine.processResult(.ambiguous(label: "Excel budget sheet"))
+            expect(state.appPhase == .ambiguous, "first ambiguous read asks")
+            engine.resumeAfterExcuse()
+            engine.resetSettleWindowToPast()
+            expect(state.appPhase == .session, "resumed back to session")
+            engine.processResult(.ambiguous(label: "Excel budget sheet"))
+            expect(state.appPhase == .session, "same ambiguous label is not re-asked (stays in session)")
+        }
+
+        // 3. Reject = confirmed drift -> OFF break/resume card.
+        do {
+            let (state, engine) = makeEngine()
+            engine.processResult(.ambiguous(label: "Excel budget sheet"))
+            engine.rejectAmbiguous()
+            expect(engine.driftCount == 1, "rejecting an ambiguous ask records a confirmed drift")
+            expect(state.appPhase == .offTask, "reject shows the OFF break/resume card")
+        }
+
+        // 4. Accept = take their word -> allowance, no drift, resume.
+        do {
+            let (state, engine) = makeEngine()
+            engine.processResult(.ambiguous(label: "Excel budget sheet"))
+            let driftBefore = engine.driftCount
+            engine.acceptAmbiguous(reason: "budget for the deck")
+            let justifiedAmbiguous = engine.currentSession?.justifications.contains {
+                $0.kind == "ambiguous" && $0.justified
+            } ?? false
+            expect(justifiedAmbiguous, "accept logs a kind=ambiguous justified event")
+            expect(engine.driftCount == driftBefore, "accept does not increment drift")
+            let rules = engine.allowanceRulesByIndex(for: state.activeTasks)
+            expect(rules[0]?.contains("budget for the deck") == true, "accept creates an allowance with the rule on task 0")
+            expect(state.appPhase == .session, "accept resumes the session")
+        }
+    }
+
     suite("EngineSessionTests_noContextIsNoop") {
         // Engine built without a modelContext (test stub path) should not crash
         // when beginSession/record/endSession are called.
