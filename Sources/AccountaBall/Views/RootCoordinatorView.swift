@@ -33,14 +33,8 @@ struct RootCoordinatorView: View {
                 .transition(.opacity)
 
             case .ambiguous:
-                // Task 8 replaces this with AmbiguousAskView. Temporary: reuse the
-                // existing OffTaskView construction to keep the build green.
-                OffTaskView(
-                    engine: engine,
-                    aiService: aiService,
-                    lastScreenText: engine.lastScreenText
-                )
-                .transition(.opacity)
+                AmbiguousAskView(engine: engine)
+                    .transition(.opacity)
 
             case .offTask:
                 OffTaskView(
