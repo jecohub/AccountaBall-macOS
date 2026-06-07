@@ -15,11 +15,25 @@ struct PerTaskComment: Equatable {
     let suggestion: String?
 }
 
+/// One entry in the session's transparency log — a moment the ball asked or the
+/// user chose. Rendered calmly in past tense in the recap.
+struct CheckLogItem: Equatable {
+    let offset: TimeInterval        // seconds from session start
+    let kind: String                // "ambiguous" | "offtask" | "auto-return"
+    let activity: String
+    let note: String                // user's response / what happened
+}
+
 /// The full end-of-session breakdown: mechanical timeline ranges + per-task
-/// AI commentary (or local comparisons if the AI call fails).
+/// AI commentary (or local comparisons if the AI call fails), plus the
+/// transparency log (every check) and the drift summary.
 struct SessionRecap: Equatable {
     let ranges: [TimelineRange]
     let perTask: [PerTaskComment]
+    let checks: [CheckLogItem]
+    let driftCount: Int
+    let driftLimit: Int
+    let commitmentBroken: Bool
 }
 
 /// Input to the AI's `summarizeSession` — one per task. The local comparison

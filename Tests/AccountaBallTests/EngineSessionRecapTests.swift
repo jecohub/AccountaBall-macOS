@@ -42,4 +42,48 @@ func runEngineSessionRecapTests() async {
         let c0 = s.sessionRecap?.perTask.first
         expect(c0?.comment.contains("Faster") == true, "local comparison says faster (600 < 900)")
     }
+
+    await suite("EngineSessionRecap.transparencyLog") {
+        guard let c = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = c.mainContext
+
+        let s = AppState()
+        s.tasks = [TaskItem(task: "Write proposal", context: "")]
+        s.startSession()
+        let engine = AccountabilityEngine(state: s, captureService: ScreenCaptureService(), ocrService: OCRService(), aiService: EmptySessionAI(), notificationService: NotificationService())
+        engine.modelContext = ctx
+        engine.beginSession(tasks: s.tasks)
+        engine.record(taskIndex: 0, label: "vscode")
+
+        guard let session = engine.currentSession else {
+            expect(false, "session active"); return
+        }
+        let start = session.startedAt
+
+        // Seed three checks with DISTINCT timestamps (out of chronological order
+        // on purpose) so the time-ordering assertion is meaningful.
+        func seed(at: Date, kind: String, excuse: String, rule: String) {
+            let event = JustificationEvent(
+                at: at, excuse: excuse, justified: false, inferredTaskIndex: nil,
+                activity: "browsing", rule: rule, kind: kind
+            )
+            ctx.insert(event)
+            session.justifications.append(event)
+        }
+        seed(at: start.addingTimeInterval(30), kind: "offtask", excuse: "x", rule: "")
+        seed(at: start.addingTimeInterval(10), kind: "ambiguous", excuse: "research", rule: "")
+        seed(at: start.addingTimeInterval(20), kind: "offtask", excuse: "x", rule: "")
+        try? ctx.save()
+
+        await engine.finalizeSessionRecap()
+        guard let recap = s.sessionRecap else {
+            expect(false, "recap built"); return
+        }
+        expect(recap.checks.count == 3, "checks are surfaced")
+        expect(recap.driftCount == 2, "drift count surfaced")
+        expect(recap.driftLimit == s.driftLimit, "drift limit surfaced")
+        expect(recap.checks == recap.checks.sorted { $0.offset < $1.offset }, "checks are time-ordered")
+    }
 }

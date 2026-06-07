@@ -598,7 +598,32 @@ class AccountabilityEngine {
             }
             return PerTaskComment(taskTitle: input.title, comment: input.localComparison, suggestion: nil)
         }
-        state.sessionRecap = SessionRecap(ranges: ranges, perTask: comments)
+        // Transparency log: every check the ball made, time-ordered, in past
+        // tense. The drift summary is the engine's tamper-proof getters.
+        let start = session.startedAt
+        let checks: [CheckLogItem] = session.justifications
+            .sorted { $0.at < $1.at }
+            .map { j in
+                let note: String
+                switch j.kind {
+                case "ambiguous":
+                    let reason = j.excuse.trimmingCharacters(in: .whitespacesAndNewlines)
+                    note = reason.isEmpty ? "you marked it related" : "you marked related: \"\(reason)\""
+                case "auto-return":
+                    // rule distinguishes the two auto-return flavors (Task 5/10):
+                    // "returned to work" (came back on your own) vs
+                    // "resumed watching" (ignored prompt)
+                    note = j.rule.isEmpty ? "resumed watching" : j.rule
+                default: // "offtask"
+                    note = "you drifted"
+                }
+                return CheckLogItem(offset: j.at.timeIntervalSince(start), kind: j.kind,
+                                    activity: j.activity, note: note)
+            }
+
+        state.sessionRecap = SessionRecap(
+            ranges: ranges, perTask: comments, checks: checks,
+            driftCount: driftCount, driftLimit: state.driftLimit, commitmentBroken: commitmentBroken)
     }
 
     static func comparisonString(current: TimeInterval, last: TimeInterval?, average: TimeInterval?) -> String {
