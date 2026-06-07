@@ -35,7 +35,11 @@ final class AppState: ObservableObject {
     /// drifts allowed before the commitment is broken. Set ONLY at setup — the
     /// in-the-moment user must not be able to raise it. Persisted in UserDefaults.
     @Published var driftLimit: Int = 3 {
-        didSet { UserDefaults.standard.set(driftLimit, forKey: driftLimitKey) }
+        didSet {
+            let clamped = min(max(driftLimit, 1), 10)
+            if clamped != driftLimit { driftLimit = clamped; return }  // re-entrant set won't re-fire didSet for observers; guard avoids double-persist
+            UserDefaults.standard.set(driftLimit, forKey: driftLimitKey)
+        }
     }
 
     func loadDriftLimit() {

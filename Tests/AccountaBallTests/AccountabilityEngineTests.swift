@@ -204,6 +204,7 @@ func runEngineSessionTests() {
         UserDefaults.standard.removeObject(forKey: key)
         let a = AppState()
         a.driftLimit = 5
+        // AppState()'s default-value init does NOT fire didSet, so constructing `b` does not overwrite a's persisted value before loadDriftLimit() reads it.
         let b = AppState()
         b.loadDriftLimit()
         expect(b.driftLimit == 5, "loadDriftLimit reads back the persisted value")
@@ -213,6 +214,17 @@ func runEngineSessionTests() {
         let c = AppState()
         c.loadDriftLimit()
         expect(c.driftLimit == 3, "unset drift limit defaults to 3")
+        UserDefaults.standard.removeObject(forKey: key)  // cleanup
+
+        // didSet clamps out-of-range assignments to 1...10 (single source of truth).
+        UserDefaults.standard.removeObject(forKey: key)
+        let s = AppState()
+        s.driftLimit = 50
+        expect(s.driftLimit == 10, "driftLimit clamps high values to 10 on assignment")
+        s.driftLimit = 0
+        expect(s.driftLimit == 1, "driftLimit clamps low values to 1 on assignment")
+        s.driftLimit = -5
+        expect(s.driftLimit == 1, "driftLimit clamps negatives to 1 on assignment")
         UserDefaults.standard.removeObject(forKey: key)  // cleanup
     }
 
