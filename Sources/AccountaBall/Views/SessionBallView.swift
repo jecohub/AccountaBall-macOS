@@ -23,22 +23,33 @@ struct SessionBallView: View {
 
     private var ballContent: some View {
         ZStack {
-            BasketballView(size: 80)
+            // On a timed break the ball relaxes (happy face); otherwise the usual ball.
+            BasketballView(size: 80, showFace: breakRemaining != nil ? .happy : .none)
 
-            // Timer overlay
+            // Timer overlay. `sessionSeconds` re-renders this every second (see timer
+            // below), so the break countdown reads fresh on each tick.
             VStack(spacing: 2) {
-                Text(formatTime(sessionSeconds))
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-
-                if let idx = state.activeTaskIndex, state.tasks.indices.contains(idx) {
-                    Divider().frame(width: 50).overlay(.white.opacity(0.5))
-                    Text("Task \(idx + 1)")
+                if let remaining = breakRemaining {
+                    Text("break")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.white.opacity(0.8))
-                    Text(formatTime(Int(state.tasks[idx].timeOnTask)))
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    Text(formatTime(remaining))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .foregroundStyle(.white)
+                } else {
+                    Text(formatTime(sessionSeconds))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+
+                    if let idx = state.activeTaskIndex, state.tasks.indices.contains(idx) {
+                        Divider().frame(width: 50).overlay(.white.opacity(0.5))
+                        Text("Task \(idx + 1)")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.8))
+                        Text(formatTime(Int(state.tasks[idx].timeOnTask)))
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.white)
+                    }
                 }
             }
             .frame(width: 60)
@@ -85,6 +96,12 @@ struct SessionBallView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
         .transition(.opacity)
+    }
+
+    /// Whole seconds left on the current break (ceil so it reads 5:00 → 0:01), or nil.
+    private var breakRemaining: Int? {
+        guard let secs = engine.breakSecondsRemaining, secs > 0 else { return nil }
+        return Int(secs.rounded(.up))
     }
 
     private func formatTime(_ seconds: Int) -> String {
