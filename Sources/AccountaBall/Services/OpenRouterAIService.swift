@@ -78,23 +78,27 @@ class OpenRouterAIService: AIService {
         return prompt
     }
 
+    // Inline (non-JSON) classify system prompt for OpenRouter. Extracted to a
+    // static so it has a test surface and can't silently drift from the shared
+    // AIPrompts.classifySystem (see OpenRouterPromptTests).
+    static let classifyMultiSystem = """
+    You are an accountability assistant monitoring a user's screen.
+    The user has declared tasks numbered starting at 0.
+    Respond with one line: RESULT | <3-5 word activity label>. Example: TASK:0 | editing AppDelegate.swift
+    - TASK:N — the screen clearly matches task N (0-based index they appear to be working on)
+    - AMBIGUOUS — you honestly cannot tell whether it relates to a task (e.g. a doc,
+      spreadsheet, or article that might be for a task or might not)
+    - OFFTASK — the screen clearly does NOT match any task (a game, unrelated
+      social feed, shopping, entertainment)
+    - DONE:N — task N appears completed.
+    When you are unsure, prefer TASK:N or AMBIGUOUS over OFFTASK — a false "get back to
+    work" costs more trust than a missed slack-off. Reserve OFFTASK for clear cases.
+    No explanation.
+    """
+
     func classifyMulti(tasks: [TaskItem], screenText: String, allowanceRulesByIndex: [Int: [String]]) async throws -> MultiTaskResult {
-        let system = """
-        You are an accountability assistant monitoring a user's screen.
-        The user has declared tasks numbered starting at 0.
-        Respond with one line: RESULT | <3-5 word activity label>. Example: TASK:0 | editing AppDelegate.swift
-        - TASK:N — the screen clearly matches task N (0-based index they appear to be working on)
-        - AMBIGUOUS — you honestly cannot tell whether it relates to a task (e.g. a doc,
-          spreadsheet, or article that might be for a task or might not)
-        - OFFTASK — the screen clearly does NOT match any declared task (a game, unrelated
-          social feed, shopping, entertainment)
-        - DONE:N (task N appears completed)
-        When you are unsure, prefer TASK:N or AMBIGUOUS over OFFTASK — a false "get back to
-        work" costs more trust than a missed slack-off. Reserve OFFTASK for clear cases.
-        No explanation.
-        """
         let raw = try await sendMessage(
-            system: system,
+            system: Self.classifyMultiSystem,
             user: Self.buildClassifyPrompt(tasks: tasks, screenText: screenText, allowanceRulesByIndex: allowanceRulesByIndex),
             maxTokens: 40
         )

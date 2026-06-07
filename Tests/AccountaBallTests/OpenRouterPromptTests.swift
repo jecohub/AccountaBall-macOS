@@ -15,5 +15,8 @@ func runOpenRouterPromptTests() {
 
         expect(AIPrompts.classifySystem.contains("AMBIGUOUS"), "classify prompt offers AMBIGUOUS")
         expect(AIPrompts.classifySystem.lowercased().contains("unsure"), "classify prompt biases toward ON/AMBIGUOUS when unsure")
+
+        expect(OpenRouterAIService.classifyMultiSystem.contains("AMBIGUOUS"), "OpenRouter classify prompt offers AMBIGUOUS")
+        expect(OpenRouterAIService.classifyMultiSystem.lowercased().contains("unsure"), "OpenRouter classify prompt biases toward ON/AMBIGUOUS when unsure")
     }
 }
