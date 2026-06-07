@@ -21,7 +21,11 @@ func runPersistenceTests() {
 
         let ev = JustificationEvent(at: .now, excuse: "x", justified: false,
             inferredTaskIndex: nil, activity: "Twitter", rule: "social", kind: "offtask")
-        ctx.insert(ev); try? ctx.save()
-        expect(ev.kind == "offtask", "JustificationEvent persists kind")
+        ctx.insert(ev)
+        do { try ctx.save() } catch { expect(false, "save justification event") }
+
+        let events = (try? ctx.fetch(FetchDescriptor<JustificationEvent>())) ?? []
+        expect(events.count == 1, "one justification event persisted")
+        expect(events.first?.kind == "offtask", "JustificationEvent persists kind")
     }
 }
