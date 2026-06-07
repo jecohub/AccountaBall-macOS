@@ -2,6 +2,7 @@ import Foundation
 import Combine
 
 private let tasksKey = "accountaball.tasks.v2"
+private let driftLimitKey = "accountaball.driftLimit.v1"
 
 final class AppState: ObservableObject {
     @Published var tasks: [TaskItem] = []
@@ -29,6 +30,18 @@ final class AppState: ObservableObject {
     @Published var recaps: [String: TaskRecap] = [:]
     /// A revived allowance awaiting one-time user confirmation on reuse.
     @Published var pendingAllowanceConfirm: AllowanceConfirm? = nil
+
+    /// Pre-committed drift budget for a session: the number of confirmed off-task
+    /// drifts allowed before the commitment is broken. Set ONLY at setup — the
+    /// in-the-moment user must not be able to raise it. Persisted in UserDefaults.
+    @Published var driftLimit: Int = 3 {
+        didSet { UserDefaults.standard.set(driftLimit, forKey: driftLimitKey) }
+    }
+
+    func loadDriftLimit() {
+        let v = UserDefaults.standard.integer(forKey: driftLimitKey)
+        driftLimit = (v == 0) ? 3 : min(max(v, 1), 10)   // 0 == unset → default 3
+    }
 
     var activeTasks: [TaskItem] { tasks.filter { !$0.isComplete } }
     var allTasksComplete: Bool { !tasks.isEmpty && tasks.allSatisfy { $0.isComplete } }

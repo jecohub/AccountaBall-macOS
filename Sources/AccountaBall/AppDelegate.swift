@@ -63,6 +63,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         eng.modelContext = container.mainContext
         self.engine = eng
 
+        // Load the pre-committed drift limit at launch (beside the task load that
+        // RootCoordinatorView triggers on appear), so the engine's
+        // commitmentBroken trigger reads the user's setup value from the start.
+        state.loadDriftLimit()
+
         // Startup AI reachability probe — if the provider is unreachable at
         // launch, show the AI-unavailable card immediately rather than waiting
         // for the first failed classify cycle (~5s into a session).

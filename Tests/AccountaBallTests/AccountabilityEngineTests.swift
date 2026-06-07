@@ -155,6 +155,67 @@ func runEngineSessionTests() {
         expect(engine.currentSession?.entries.contains(where: { $0.label == "twitter" }) == true, "offTask entry recorded with label")
     }
 
+    suite("EngineDriftLimitTests") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+        let state = AppState()
+        state.tasks = [TaskItem(task: "write proposal", context: "")]
+        state.startSession()
+        let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+        engine.modelContext = ctx
+        engine.beginSession(tasks: state.tasks)
+
+        guard let session = engine.currentSession else {
+            expect(false, "session active after beginSession"); return
+        }
+
+        // Seed two confirmed off-task drifts and one ambiguous event. Mirror how
+        // the engine logs an event: insert into ctx AND append to the session's
+        // justifications, then save.
+        func seed(kind: String) {
+            let event = JustificationEvent(
+                at: .now, excuse: "x", justified: false, inferredTaskIndex: nil,
+                activity: "y", rule: "", kind: kind
+            )
+            ctx.insert(event)
+            session.justifications.append(event)
+        }
+        seed(kind: "offtask")
+        seed(kind: "offtask")
+        seed(kind: "ambiguous")
+        try? ctx.save()
+
+        expect(engine.driftCount == 2, "driftCount counts only kind==offtask")
+        state.driftLimit = 2
+        expect(engine.commitmentBroken == true, "commitmentBroken true at limit")
+        state.driftLimit = 3
+        expect(engine.commitmentBroken == false, "commitmentBroken false under limit")
+    }
+
+    suite("AppStateDriftLimitPersistence") {
+        let key = "accountaball.driftLimit.v1"
+
+        // Persists across save/load.
+        UserDefaults.standard.removeObject(forKey: key)
+        let a = AppState()
+        a.driftLimit = 5
+        let b = AppState()
+        b.loadDriftLimit()
+        expect(b.driftLimit == 5, "loadDriftLimit reads back the persisted value")
+
+        // Unset key defaults to 3.
+        UserDefaults.standard.removeObject(forKey: key)
+        let c = AppState()
+        c.loadDriftLimit()
+        expect(c.driftLimit == 3, "unset drift limit defaults to 3")
+        UserDefaults.standard.removeObject(forKey: key)  // cleanup
+    }
+
     suite("EngineSessionTests_noContextIsNoop") {
         // Engine built without a modelContext (test stub path) should not crash
         // when beginSession/record/endSession are called.

@@ -31,6 +31,17 @@ class AccountabilityEngine {
     var modelContext: ModelContext?
     var currentSession: WorkSession?
     private(set) var lastActivityLabel: String = ""
+
+    /// Confirmed drifts this session = off-task JustificationEvents. Derived so it
+    /// can never desync from the record the recap shows.
+    var driftCount: Int {
+        (currentSession?.justifications.filter { $0.kind == "offtask" }.count) ?? 0
+    }
+
+    /// The pre-committed limit was reached. The in-the-moment user cannot change
+    /// `state.driftLimit` (it's set only at setup), so this is tamper-proof.
+    var commitmentBroken: Bool { driftCount >= state.driftLimit }
+
     // Revived allowances awaiting one-time user confirmation on reuse (Task 18).
     private var pendingConfirms: [(title: String, kt: KnowledgeTask, allowance: Allowance)] = []
 
