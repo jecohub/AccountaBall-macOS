@@ -18,5 +18,10 @@ func runPersistenceTests() {
         expect(fetched.count == 1, "one knowledge task persisted")
         expect(fetched.first?.allowances.count == 1, "allowance related")
         expect(fetched.first?.completions.first?.steps == ["a"], "completion steps round-trip")
+
+        let ev = JustificationEvent(at: .now, excuse: "x", justified: false,
+            inferredTaskIndex: nil, activity: "Twitter", rule: "social", kind: "offtask")
+        ctx.insert(ev); try? ctx.save()
+        expect(ev.kind == "offtask", "JustificationEvent persists kind")
     }
 }
