@@ -83,10 +83,15 @@ class OpenRouterAIService: AIService {
         You are an accountability assistant monitoring a user's screen.
         The user has declared tasks numbered starting at 0.
         Respond with one line: RESULT | <3-5 word activity label>. Example: TASK:0 | editing AppDelegate.swift
-        - TASK:N (where N is the 0-based index of the task they appear to be working on)
-        - OFFTASK (not working on any declared task)
+        - TASK:N — the screen clearly matches task N (0-based index they appear to be working on)
+        - AMBIGUOUS — you honestly cannot tell whether it relates to a task (e.g. a doc,
+          spreadsheet, or article that might be for a task or might not)
+        - OFFTASK — the screen clearly does NOT match any declared task (a game, unrelated
+          social feed, shopping, entertainment)
         - DONE:N (task N appears completed)
-        When uncertain, respond OFFTASK. No explanation.
+        When you are unsure, prefer TASK:N or AMBIGUOUS over OFFTASK — a false "get back to
+        work" costs more trust than a missed slack-off. Reserve OFFTASK for clear cases.
+        No explanation.
         """
         let raw = try await sendMessage(
             system: system,

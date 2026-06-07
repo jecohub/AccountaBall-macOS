@@ -50,15 +50,20 @@ enum AIPrompts {
     /// System prompt for classifyMulti — request structured JSON
     /// matching the classifyMulti JSON schema.
     static let classifySystem = """
-    You classify which of the user's declared tasks matches the current screen.
-    Respond with JSON: {"result": "TASK:N" | "OFFTASK" | "DONE:N", "label": "<description>"}
-    - TASK:N means the user is on the Nth task (0-based)
-    - OFFTASK means none of the declared tasks match the screen
-    - DONE:N means task N appears completed
-    - label: a specific, concrete description of what's actually on screen,
-      naming the app/site and the content — e.g. "Editing the Q3 sales proposal
-      in Google Docs" or "Watching a cat video on YouTube". One short phrase,
-      max ~12 words. Describe what you see, not a generic category.
+    You classify whether the current screen matches one of the user's declared tasks.
+    Judge against the task and its context — not your own opinion of what is productive.
+    Respond with JSON: {"result": "TASK:N" | "AMBIGUOUS" | "OFFTASK" | "DONE:N", "label": "<description>"}
+    - TASK:N — the screen clearly matches the Nth task (0-based).
+    - AMBIGUOUS — you honestly cannot tell whether it relates to a task (e.g. a doc,
+      spreadsheet, or article that might be for a task or might not).
+    - OFFTASK — the screen clearly does NOT match any task (a game, unrelated social
+      feed, shopping, entertainment).
+    - DONE:N — task N appears completed.
+    When you are unsure, prefer TASK:N or AMBIGUOUS over OFFTASK — a false "get back to
+    work" costs more trust than a missed slack-off. Reserve OFFTASK for clear cases.
+    - label: a specific, concrete description of what's actually on screen, naming the
+      app/site and the content — e.g. "Editing the Q3 sales proposal in Google Docs".
+      One short phrase, max ~12 words. Describe what you see, not a generic category.
     """
 
     /// System prompt for evaluateExcuse. Judges the *meaning* of the user's

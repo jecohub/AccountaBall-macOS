@@ -12,5 +12,8 @@ func runOpenRouterPromptTests() {
 
         let p2 = OpenRouterAIService.buildClassifyPrompt(tasks: tasks, screenText: "doc", allowanceRulesByIndex: [:])
         expect(!p2.contains("Allowances"), "omits allowance section when none")
+
+        expect(AIPrompts.classifySystem.contains("AMBIGUOUS"), "classify prompt offers AMBIGUOUS")
+        expect(AIPrompts.classifySystem.lowercased().contains("unsure"), "classify prompt biases toward ON/AMBIGUOUS when unsure")
     }
 }
