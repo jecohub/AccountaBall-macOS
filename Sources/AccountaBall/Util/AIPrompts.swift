@@ -54,10 +54,13 @@ enum AIPrompts {
     Judge against the task and its context — not your own opinion of what is productive.
     Respond with JSON: {"result": "TASK:N" | "AMBIGUOUS" | "OFFTASK" | "DONE:N", "label": "<description>"}
     - TASK:N — the screen clearly matches the Nth task (0-based).
-    - AMBIGUOUS — you honestly cannot tell whether it relates to a task (e.g. a doc,
-      spreadsheet, or article that might be for a task or might not).
-    - OFFTASK — the screen clearly does NOT match any task (a game, unrelated social
-      feed, shopping, entertainment).
+    - AMBIGUOUS — work-shaped content whose connection to a task is not obvious:
+      a document, spreadsheet, code editor, terminal, email, chat, an article, API
+      docs, or an unfamiliar web page that could plausibly be research or prep for a
+      task. When in doubt about anything productivity-like, choose AMBIGUOUS.
+    - OFFTASK — clearly leisure or personal, with no plausible work link: games,
+      entertainment video, scrolling a social feed, shopping, sports/news for fun,
+      messaging friends.
     - DONE:N — task N appears completed.
     When you are unsure, prefer TASK:N or AMBIGUOUS over OFFTASK — a false "get back to
     work" costs more trust than a missed slack-off. Reserve OFFTASK for clear cases.
