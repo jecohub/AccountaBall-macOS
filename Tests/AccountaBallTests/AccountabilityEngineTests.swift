@@ -228,6 +228,37 @@ func runEngineSessionTests() {
         UserDefaults.standard.removeObject(forKey: key)  // cleanup
     }
 
+    // Task 5: entering the confirmed off-task prompt logs exactly one drift
+    // (kind=="offtask") the moment the break/resume card surfaces — independent
+    // of any later button press or typed excuse.
+    suite("EngineConfirmedDriftLogged") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+        let state = AppState()
+        state.tasks = [TaskItem(task: "write proposal", context: "")]
+        state.startSession()
+        let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+        engine.modelContext = ctx
+        engine.beginSession(tasks: state.tasks)
+        // Drop the settle window so the two off reads aren't suppressed.
+        engine.resetSettleWindowToPast()
+
+        engine.processResult(.offTask(label: "YouTube music"))   // suspicion=1
+        engine.processResult(.offTask(label: "YouTube music"))   // suspicion=2 -> confirmed drift
+        expect(engine.driftCount == 1, "entering offTask logs one confirmed drift")
+        expect(state.appPhase == .offTask, "phase is offTask")
+
+        // A third still-off read while already in .offTask must NOT log again —
+        // the prompt is already up, the drift was the entry transition.
+        engine.processResult(.offTask(label: "YouTube music"))
+        expect(engine.driftCount == 1, "still-off reads while prompt is up do not re-log a drift")
+    }
+
     suite("EngineSessionTests_noContextIsNoop") {
         // Engine built without a modelContext (test stub path) should not crash
         // when beginSession/record/endSession are called.

@@ -244,6 +244,9 @@ class AccountabilityEngine {
     @MainActor
     func resetSettleWindow() { settleUntil = now().addingTimeInterval(settleWindow) }
 
+    /// Test seam: collapse the settle window so off-task reads aren't suppressed.
+    func resetSettleWindowToPast() { settleUntil = .distantPast }
+
     @MainActor
     func beginSession(tasks: [TaskItem] = []) {
         guard modelContext != nil else { return }
@@ -261,6 +264,22 @@ class AccountabilityEngine {
         session.endedAt = .now
         try? ctx.save()
         currentSession = nil
+    }
+
+    /// Log a single accountability check as a JustificationEvent. The drift is the
+    /// FACT of being off-task (or ambiguous, or auto-returned), recorded the moment
+    /// the decision is made — independent of any later button press. `kind`
+    /// distinguishes the flow ("offtask" | "ambiguous" | "auto-return"); `driftCount`
+    /// (and the transparency log) read these back. Reused by Tasks 6 and 10.
+    @MainActor
+    private func logCheck(kind: String, justified: Bool, activity: String,
+                          excuse: String, rule: String, taskIndex: Int?) {
+        guard let session = currentSession, let ctx = modelContext else { return }
+        let event = JustificationEvent(at: .now, excuse: excuse, justified: justified,
+            inferredTaskIndex: taskIndex, activity: activity, rule: rule, kind: kind)
+        ctx.insert(event)
+        session.justifications.append(event)
+        try? ctx.save()
     }
 
     @MainActor
@@ -420,7 +439,9 @@ class AccountabilityEngine {
             state.activeTaskIndex = nil
             dbg("offTask result (suspicion=\(suspicionCount))")
             if suspicionCount >= 2, !inSettleWindow, state.appPhase == .session {
-                dbg("ENTER offTask phase")
+                dbg("ENTER offTask phase (confirmed drift)")
+                logCheck(kind: "offtask", justified: false, activity: label,
+                         excuse: "(drifted)", rule: "off-task", taskIndex: nil)
                 state.ballState = .offTask
                 state.appPhase = .offTask
                 notificationService.sendOffTaskNudge(task: state.activeTasks.first?.task ?? "")
