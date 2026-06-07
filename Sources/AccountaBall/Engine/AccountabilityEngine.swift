@@ -556,8 +556,11 @@ class AccountabilityEngine {
         )
 
         // Session-wide off-task count. True per-task attribution is out of
-        // scope, so every task input carries the same total.
-        let offCount = session.justifications.filter { !$0.justified }.count
+        // scope, so every task input carries the same total. Filter on
+        // kind == "offtask" to share ONE definition with `driftCount` and
+        // prevent silent divergence if a future justified:false non-offtask
+        // event is ever added.
+        let offCount = session.justifications.filter { $0.kind == "offtask" }.count
         let sortedReads = session.entries.sorted { $0.at < $1.at }.map { ($0.taskIndex, $0.label) }
 
         var inputs: [PerTaskSessionInput] = []
@@ -736,7 +739,11 @@ class AccountabilityEngine {
     func acceptAmbiguous(reason: String) {
         let label = lastActivityLabel
         let rule = reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? label : reason
-        let taskIndex = state.tasks.firstIndex(where: { !$0.isComplete })   // the task the ask referenced
+        // The ambiguous card asks specifically about the first active task
+        // (AmbiguousAskView shows activeTasks.first), so the allowance is attributed to
+        // that same task. Phase 1 limitation: the ask is first-task-centric and does not
+        // disambiguate among multiple active tasks.
+        let taskIndex = state.tasks.firstIndex(where: { !$0.isComplete })
         logCheck(kind: "ambiguous", justified: true, activity: label, excuse: reason, rule: rule, taskIndex: taskIndex)
         if let idx = taskIndex { createAllowance(rule: rule, forTaskIndex: idx) }
         resumeAfterExcuse()
@@ -795,6 +802,11 @@ class AccountabilityEngine {
 
         // Always log the interrogation, including the model's reason.
         if let session = currentSession, let ctx = modelContext {
+            // NOTE: handleExcuse is retained for tests but is no longer wired into the live
+            // flow (the 3-state redesign replaced the typed-excuse path with the AMBIGUOUS
+            // ask + OFF break/resume choice). This event intentionally keeps the historical
+            // behavior. Do NOT reintroduce handleExcuse into the active flow without setting
+            // `kind:` deliberately — the default "offtask" would inflate the derived driftCount.
             let event = JustificationEvent(
                 at: .now,
                 excuse: text,
