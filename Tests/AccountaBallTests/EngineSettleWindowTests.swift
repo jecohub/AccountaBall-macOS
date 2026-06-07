@@ -44,7 +44,9 @@ func runEngineSettleWindowTests() async {
         engine.processResult(.offTask(label: "watching youtube"))
         expect(s.appPhase == .session, "same-activity off-task suppressed during the 2-min grace")
         // Switch to a DIFFERENT off-task activity → grace ends, normal re-check.
+        // The new screen must still be held ≥15s for the drift to confirm.
         engine.processResult(.offTask(label: "scrolling twitter"))
+        fakeNow = fakeNow.addingTimeInterval(engine.settleWindow + 1)
         engine.processResult(.offTask(label: "scrolling twitter"))
         expect(s.appPhase == .offTask, "switching to a different activity ends the grace and re-prompts")
     }
@@ -60,9 +62,11 @@ func runEngineSettleWindowTests() async {
         engine.now = { fakeNow }
         engine.processResult(.offTask(label: "watching youtube"))
         engine.resumeAfterExcuse(graceForCurrentActivity: true)     // graceUntil = now+120
-        // Jump past the whole grace window; the same activity now prompts again.
+        // Jump past the whole grace window; the same activity now prompts again,
+        // once it has been held ≥15s past the grace lapsing.
         fakeNow = fakeNow.addingTimeInterval(AppConstants.continueAnywayGraceSeconds + 1)
         engine.processResult(.offTask(label: "watching youtube"))
+        fakeNow = fakeNow.addingTimeInterval(engine.settleWindow + 1)
         engine.processResult(.offTask(label: "watching youtube"))
         expect(s.appPhase == .offTask, "same activity prompts again after the grace window lapses")
     }

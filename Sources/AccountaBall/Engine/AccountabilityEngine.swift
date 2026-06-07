@@ -10,6 +10,11 @@ class AccountabilityEngine {
     private let notificationService: NotificationService
     private var captureTask: Task<Void, Never>?
     private var suspicionCount: Int = 0
+    /// Start of the current uninterrupted off-task stay on ONE screen (nil = not
+    /// currently off-task). A drift confirms only once this exceeds
+    /// `driftConfirmSeconds`; switching off-task screens restarts it.
+    private var offTaskStreakStart: Date?
+    private var offTaskStreakActivity: String = ""
     private(set) var lastScreenText: String = ""
     private var healthPollTask: Task<Void, Never>?
 
@@ -110,6 +115,7 @@ class AccountabilityEngine {
         captureTask?.cancel()
         captureTask = nil
         suspicionCount = 0
+        clearOffTaskStreak()
     }
 
     /// Build the text we classify from a capture tick: the focused window in full
@@ -138,6 +144,7 @@ class AccountabilityEngine {
     ///   just the normal short settle breather.
     func resumeAfterExcuse(graceForCurrentActivity: Bool = false) {
         suspicionCount = 0
+        clearOffTaskStreak()
         state.ballState = .onTask
         state.appPhase = .session
         resetSettleWindow()  // brief unconditional breather in both cases
@@ -165,12 +172,18 @@ class AccountabilityEngine {
         graceUntil = .distantPast
     }
 
+    private func clearOffTaskStreak() {
+        offTaskStreakStart = nil
+        offTaskStreakActivity = ""
+    }
+
     /// User chose the timed break on a confirmed drift. Ball goes quiet; monitoring
     /// resumes silently when the window elapses.
     @MainActor
     func takeBreak() {
         breakUntil = now().addingTimeInterval(AppConstants.breakSeconds)
         suspicionCount = 0
+        clearOffTaskStreak()
         state.ballState = .onTask
         state.appPhase = .session
         resetSettleWindow()
@@ -294,6 +307,7 @@ class AccountabilityEngine {
         try? modelContext?.save()
         currentSession = session
         askedActivities = []
+        clearOffTaskStreak()
         resetSettleWindow()
     }
 
@@ -468,6 +482,7 @@ class AccountabilityEngine {
             lastActivityLabel = label
             record(taskIndex: index, label: label)
             suspicionCount = 0
+            clearOffTaskStreak()
             state.activeTaskIndex = index
             state.ballState = .onTask
             if state.tasks.indices.contains(index) {
@@ -480,6 +495,7 @@ class AccountabilityEngine {
             lastActivityLabel = label
             record(taskIndex: nil, label: label)
             suspicionCount = 0   // ambiguous is not a confirmed drift
+            clearOffTaskStreak()
             state.activeTaskIndex = nil
             let key = label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             if askedActivities.contains(key) || (inActivityGrace && Self.activityMatches(label, graceActivity ?? "")) {
@@ -510,9 +526,16 @@ class AccountabilityEngine {
             }
             suspicionCount += 1
             state.activeTaskIndex = nil
-            dbg("offTask result (suspicion=\(suspicionCount))")
-            if suspicionCount >= 2, !inSettleWindow, state.appPhase == .session {
-                dbg("ENTER offTask phase (confirmed drift)")
+            // Same-screen dwell: keep the clock running while the off-task label is
+            // unchanged; restart it the moment the screen changes ("reset per screen").
+            if offTaskStreakStart == nil || !Self.activityMatches(label, offTaskStreakActivity) {
+                offTaskStreakStart = now()
+                offTaskStreakActivity = label
+            }
+            let dwell = now().timeIntervalSince(offTaskStreakStart!)
+            dbg("offTask (\"\(label)\") dwell=\(Int(dwell))s")
+            if dwell >= AppConstants.driftConfirmSeconds, !inSettleWindow, state.appPhase == .session {
+                dbg("ENTER offTask phase (confirmed drift after \(Int(dwell))s)")
                 logCheck(kind: "offtask", justified: false, activity: label,
                          excuse: "(drifted)", rule: "off-task", taskIndex: nil)
                 state.ballState = .offTask

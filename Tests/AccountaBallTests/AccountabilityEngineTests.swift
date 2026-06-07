@@ -43,7 +43,10 @@ func runAccountabilityEngineTests() {
         expect(state.appPhase == .session, "single offTask does not change phase")
 
         (state, engine) = make()
+        let box1 = Box()
+        engine.now = { box1.now }
         engine.processResult(.offTask(label: ""))
+        box1.now = box1.now.addingTimeInterval(16)   // hold the SAME off-task screen ≥15s
         engine.processResult(.offTask(label: ""))
         expect(state.ballState == .offTask, "two consecutive offTask flips to offTask")
         expect(state.appPhase == .offTask, "two consecutive offTask sets offTask phase")
@@ -80,7 +83,10 @@ func runAccountabilityEngineTests() {
         expect(state.appPhase == .complete, "all done triggers complete phase")
 
         (state, engine) = make()
+        let box2 = Box()
+        engine.now = { box2.now }
         engine.processResult(.offTask(label: ""))
+        box2.now = box2.now.addingTimeInterval(16)
         engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .offTask, "two offTask enters offTask phase")
         // Still-off-task reads keep the prompt up (the user must answer or return
@@ -95,7 +101,10 @@ func runAccountabilityEngineTests() {
         expect(state.ballState == .onTask, "auto-resume restores the on-task ball")
 
         (state, engine) = make()
+        let box3 = Box()
+        engine.now = { box3.now }
         engine.processResult(.offTask(label: ""))
+        box3.now = box3.now.addingTimeInterval(16)
         engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .offTask, "confirmed offTask phase")
         engine.resumeAfterExcuse()
@@ -250,12 +259,15 @@ func runEngineSessionTests() {
         state.startSession()
         let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
         engine.modelContext = ctx
+        let driftBox = Box()
+        engine.now = { driftBox.now }
         engine.beginSession(tasks: state.tasks)
         // Drop the settle window so the two off reads aren't suppressed.
         engine.resetSettleWindowToPast()
 
-        engine.processResult(.offTask(label: "YouTube music"))   // suspicion=1
-        engine.processResult(.offTask(label: "YouTube music"))   // suspicion=2 -> confirmed drift
+        engine.processResult(.offTask(label: "YouTube music"))   // starts the dwell clock
+        driftBox.now = driftBox.now.addingTimeInterval(16)       // same screen, ≥15s
+        engine.processResult(.offTask(label: "YouTube music"))   // dwell confirms the drift
         expect(engine.driftCount == 1, "entering offTask logs one confirmed drift")
         expect(state.appPhase == .offTask, "phase is offTask")
 
@@ -278,11 +290,14 @@ func runEngineSessionTests() {
         state.startSession()
         let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
         engine.modelContext = ctx
+        let returnBox = Box()
+        engine.now = { returnBox.now }
         engine.beginSession(tasks: state.tasks)
         engine.resetSettleWindowToPast()
 
-        // Drift into .offTask (two off reads -> confirmed drift, prompt up).
+        // Drift into .offTask (same screen held ≥15s -> confirmed drift, prompt up).
         engine.processResult(.offTask(label: "YouTube"))
+        returnBox.now = returnBox.now.addingTimeInterval(16)
         engine.processResult(.offTask(label: "YouTube"))
         expect(engine.driftCount == 1, "entering offTask logs one confirmed drift")
         expect(state.appPhase == .offTask, "phase is offTask while prompt is up")
@@ -429,6 +444,7 @@ func runEngineSessionTests() {
             engine.takeBreak()
             box.now = box.now.addingTimeInterval(AppConstants.breakSeconds + 1)
             engine.processResult(.offTask(label: "YouTube"))
+            box.now = box.now.addingTimeInterval(16)   // hold the same off-task screen ≥15s
             engine.processResult(.offTask(label: "YouTube"))
             expect(state.appPhase == .offTask, "normal prompting resumes after the break elapses")
             expect(engine.driftCount == 1, "a drift is logged after the break elapses")
@@ -486,6 +502,76 @@ func runEngineSessionTests() {
         expect(autoReturn?.justified == true, "auto-return is justified")
         expect(autoReturn?.rule == "resumed watching", "auto-return uses rule=resumed watching")
         expect(autoReturn?.activity == "Reddit", "auto-return carries the last activity label")
+    }
+
+    // 3-state QA fix: a drift is confirmed only after the user stays on the SAME
+    // off-task screen for `driftConfirmSeconds`. Brief glances and hopping between
+    // off-task screens never confirm; returning to work restarts the clock.
+    suite("EngineDriftDwell") {
+        guard let container = try? AccountaBallStore.makeContainer(inMemory: true) else {
+            expect(false, "container builds"); return
+        }
+        let ctx = container.mainContext
+        let capture = ScreenCaptureService()
+        let ocr = OCRService()
+        let notif = NotificationService()
+
+        @MainActor
+        func makeEngine() -> (AppState, AccountabilityEngine, Box) {
+            let state = AppState()
+            state.tasks = [TaskItem(task: "write proposal", context: "")]
+            state.startSession()
+            let engine = AccountabilityEngine(state: state, captureService: capture, ocrService: ocr, aiService: MultiMockAI(), notificationService: notif)
+            engine.modelContext = ctx
+            let box = Box()
+            engine.now = { box.now }
+            engine.beginSession(tasks: state.tasks)
+            engine.resetSettleWindowToPast()
+            return (state, engine, box)
+        }
+
+        // 1. Same screen <15s does not confirm.
+        do {
+            let (state, engine, _) = makeEngine()
+            engine.processResult(.offTask(label: "yt"))
+            engine.processResult(.offTask(label: "yt"))
+            expect(state.appPhase == .session, "same-screen <15s does not confirm a drift")
+            expect(engine.driftCount == 0, "no drift logged under the dwell threshold")
+        }
+
+        // 2. Same screen ≥15s confirms once.
+        do {
+            let (state, engine, box) = makeEngine()
+            engine.processResult(.offTask(label: "yt"))
+            box.now = box.now.addingTimeInterval(16)
+            engine.processResult(.offTask(label: "yt"))
+            expect(state.appPhase == .offTask, "same-screen ≥15s confirms the drift")
+            expect(engine.driftCount == 1, "exactly one drift logged on confirm")
+        }
+
+        // 3. Switching off-task screens resets the clock.
+        do {
+            let (state, engine, box) = makeEngine()
+            engine.processResult(.offTask(label: "yt"))
+            box.now = box.now.addingTimeInterval(8)
+            engine.processResult(.offTask(label: "twitter"))
+            box.now = box.now.addingTimeInterval(8)
+            engine.processResult(.offTask(label: "twitter"))
+            expect(state.appPhase == .session, "switching off-task screens restarts the dwell clock")
+            expect(engine.driftCount == 0, "no drift while no single screen is held ≥15s")
+        }
+
+        // 4. On-task between off reads restarts the streak.
+        do {
+            let (state, engine, box) = makeEngine()
+            engine.processResult(.offTask(label: "yt"))
+            box.now = box.now.addingTimeInterval(10)
+            engine.processResult(.onTask(index: 0, label: "work"))
+            box.now = box.now.addingTimeInterval(10)
+            engine.processResult(.offTask(label: "yt"))
+            expect(state.appPhase == .session, "on-task between reads restarts the off-task streak")
+            expect(engine.driftCount == 0, "no drift after the streak was restarted")
+        }
     }
 
     suite("EngineSessionTests_noContextIsNoop") {

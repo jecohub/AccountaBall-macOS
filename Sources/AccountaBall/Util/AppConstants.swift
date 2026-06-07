@@ -22,4 +22,8 @@ enum AppConstants {
 
     /// Length of the opt-in "timed break" offered on a confirmed drift.
     static let breakSeconds: TimeInterval = 5 * 60
+
+    /// A drift is only confirmed after the user stays on the SAME off-task screen
+    /// for this long. Switching off-task screens restarts the clock.
+    static let driftConfirmSeconds: TimeInterval = 15
 }
