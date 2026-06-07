@@ -1,5 +1,6 @@
 enum MultiTaskResult: Equatable {
     case onTask(index: Int, label: String)
+    case ambiguous(label: String)   // model genuinely can't tell
     case offTask(label: String)
     case done(index: Int, label: String)
 
@@ -9,6 +10,7 @@ enum MultiTaskResult: Equatable {
         let parts = raw.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
         let keyword = parts.first.map { String($0).trimmingCharacters(in: .whitespacesAndNewlines).uppercased() } ?? ""
         let label = parts.count > 1 ? String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        if keyword == "AMBIGUOUS" { return .ambiguous(label: label) }
         if keyword == "OFFTASK" { return .offTask(label: label) }
         if keyword.hasPrefix("TASK:"), let idx = Int(keyword.dropFirst(5)) { return .onTask(index: idx, label: label) }
         if keyword.hasPrefix("DONE:"), let idx = Int(keyword.dropFirst(5)) { return .done(index: idx, label: label) }

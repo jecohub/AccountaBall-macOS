@@ -385,6 +385,10 @@ class AccountabilityEngine {
                 state.tasks[index].timeOnTask += AppConstants.cycleSeconds  // one capture cycle
             }
 
+        case .ambiguous:
+            // Phase 1 Task 6 replaces this stub with the real AMBIGUOUS handling.
+            break
+
         case .offTask(let label):
             lastActivityLabel = label
             record(taskIndex: nil, label: label)
