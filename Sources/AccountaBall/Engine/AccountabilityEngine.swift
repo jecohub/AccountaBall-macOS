@@ -9,6 +9,11 @@ class AccountabilityEngine {
     private let aiService: AIService
     private let notificationService: NotificationService
     private var captureTask: Task<Void, Never>?
+    /// Held while capturing so macOS App Nap can't throttle the per-second UI
+    /// timers (the app runs as `.accessory` and is never frontmost, so a backgrounded
+    /// break countdown otherwise updates only every several seconds).
+    private var appNapToken: NSObjectProtocol?
+    var isPreventingAppNap: Bool { appNapToken != nil }
     private var suspicionCount: Int = 0
     /// Start of the current uninterrupted off-task stay on ONE screen (nil = not
     /// currently off-task). A drift confirms only once this exceeds
@@ -77,6 +82,9 @@ class AccountabilityEngine {
     }
 
     func start() {
+        if appNapToken == nil {
+            appNapToken = ProcessInfo.processInfo.beginActivity(options: [.userInitiated], reason: "AccountaBall focus session")
+        }
         captureTask = captureService.startLoop(interval: AppConstants.cycleSeconds, panelTitle: "AccountaBall") { [weak self] frame in
             guard let self else { return }
             let text = await self.screenText(from: frame)
@@ -114,6 +122,7 @@ class AccountabilityEngine {
     func stop() {
         captureTask?.cancel()
         captureTask = nil
+        if let t = appNapToken { ProcessInfo.processInfo.endActivity(t); appNapToken = nil }
         suspicionCount = 0
         clearOffTaskStreak()
     }

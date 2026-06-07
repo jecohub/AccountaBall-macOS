@@ -113,6 +113,17 @@ func runAccountabilityEngineTests() {
         engine.processResult(.offTask(label: ""))
         expect(state.appPhase == .session, "suspicion reset by resumeAfterExcuse")
     }
+
+    // 3-state QA fix: capturing holds an App Nap activity so the per-second UI
+    // timers (e.g. the break countdown) tick reliably while the app is backgrounded.
+    suite("EngineAppNapToken") {
+        let (_, engine) = make()
+        expect(engine.isPreventingAppNap == false, "no activity token before start")
+        engine.start()
+        expect(engine.isPreventingAppNap == true, "start() holds an App Nap activity")
+        engine.stop()
+        expect(engine.isPreventingAppNap == false, "stop() releases it")
+    }
 }
 
 @MainActor
