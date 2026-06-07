@@ -64,6 +64,40 @@ struct CompletionView: View {
                         if let recap = state.sessionRecap {
                             ScrollView {
                                 VStack(alignment: .leading, spacing: 12) {
+                                    // Transparency log first — the honest record of every
+                                    // check (◐ ambiguous-clarified, ● confirmed drift,
+                                    // ○ auto-return) is the first thing the user sees.
+                                    // The enumeration index (\.offset on the enumerated
+                                    // tuple) is the ForEach id — unique/stable, and NOT
+                                    // CheckLogItem.offset (which can collide).
+                                    if !recap.checks.isEmpty {
+                                        Text("Your checks").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
+                                        ForEach(Array(recap.checks.enumerated()), id: \.offset) { _, c in
+                                            HStack(alignment: .top, spacing: 8) {
+                                                Text(icon(for: c.kind)).font(.system(size: 12))
+                                                Text(String(format: "%02d:%02d", Int(c.offset)/60, Int(c.offset)%60))
+                                                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.5))
+                                                    .frame(width: 44, alignment: .leading)
+                                                Text("\(c.activity) — \(c.note)").font(.system(size: 12)).foregroundStyle(.white.opacity(0.8))
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                            }
+                                        }
+                                    }
+
+                                    // Drift summary line — the pre-commitment made visible.
+                                    HStack {
+                                        Text("Drift \(recap.driftCount) of \(recap.driftLimit)")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(recap.commitmentBroken ? .red.opacity(0.9) : .white.opacity(0.7))
+                                        Spacer()
+                                    }.padding(.top, 4)
+
+                                    if recap.commitmentBroken {
+                                        Text("✕ Commitment broken — you set a limit of \(recap.driftLimit), you hit \(recap.driftCount).")
+                                            .font(.system(size: 12)).foregroundStyle(.red.opacity(0.85))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+
                                     // Per-task commentary first — it's the high-value
                                     // takeaway. The timeline (which can run to many rows)
                                     // follows so it never pushes the comments below the
@@ -128,6 +162,10 @@ struct CompletionView: View {
         let s = Int(secs)
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
+    }
+
+    private func icon(for kind: String) -> String {
+        switch kind { case "ambiguous": return "◐"; case "auto-return": return "○"; default: return "●" }
     }
 
     private func runAnimation(in size: CGSize) {
