@@ -23,6 +23,7 @@ import SwiftData
 
 private func isOnTask(_ r: MultiTaskResult) -> Bool { if case .onTask = r { return true }; return false }
 private func isOffTask(_ r: MultiTaskResult) -> Bool { if case .offTask = r { return true }; return false }
+private func isAmbiguous(_ r: MultiTaskResult) -> Bool { if case .ambiguous = r { return true }; return false }
 
 @MainActor
 func runOllamaIntegrationTests() async {
@@ -62,6 +63,31 @@ func runOllamaIntegrationTests() async {
         let offResult = (try? await ai.classifyMulti(tasks: tasks, screenText: offScreen, allowanceRulesByIndex: [:])) ?? .onTask(index: 0, label: "ERROR")
         print("    → off-task screen classified as: \(offResult)")
         expect(isOffTask(offResult), "clearly off-task screen → .offTask")
+    }
+
+    // MARK: classifyMulti — 3-state bias: borderline screen must NOT be OFFTASK
+    // This is the only test that exercises the REAL model's 3-state behaviour end
+    // to end. It guards the core trust property from the classify prompt: "When you
+    // are unsure, prefer TASK:N or AMBIGUOUS over OFFTASK." A generic spreadsheet
+    // (numbers + headers) could plausibly be the budget proposal or could be
+    // something unrelated — a well-behaved biased model must answer AMBIGUOUS (or
+    // ON), never a false "get back to work". We assert NOT .offTask; the specific
+    // label is free text so we don't assert on it.
+    await suite("OllamaIntegration_classify3StateBias") {
+        let tasks = [TaskItem(task: "Write the Q3 budget proposal",
+                              context: "A document outlining projected spend and revenue for next quarter")]
+
+        // Genuinely borderline: a bare spreadsheet with generic financial-ish
+        // headers and numbers. It COULD be the budget work, but nothing names the
+        // task, the quarter, or a proposal — so a calibrated model should hedge to
+        // AMBIGUOUS, and a biased one must never escalate to OFFTASK.
+        let borderlineScreen = "Sheet1 | A B C D | Category Amount Total Notes | 1200 450 1650 | 980 320 1300 | 2100 760 2860 | Subtotal 4280"
+        let result = (try? await ai.classifyMulti(tasks: tasks, screenText: borderlineScreen, allowanceRulesByIndex: [:])) ?? .offTask(label: "ERROR")
+        print("    → borderline generic-spreadsheet screen classified as: \(result)")
+        expect(isAmbiguous(result) || isOnTask(result),
+               "borderline generic spreadsheet → .ambiguous or .onTask (model hedges when unsure)")
+        expect(!isOffTask(result),
+               "borderline screen must NOT be .offTask — no false \"get back to work\" when unsure")
     }
 
     // MARK: evaluateExcuse — aligned vs unrelated
