@@ -89,7 +89,8 @@ final class TaskCompletion {       // one record per finished run
 enum AccountaBallStore {
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let schema = Schema([WorkSession.self, TimelineEntry.self, JustificationEvent.self,
-                             KnowledgeTask.self, Allowance.self, TaskCompletion.self])
+                             KnowledgeTask.self, Allowance.self, TaskCompletion.self,
+                             FreeBallSession.self, FreeBallCapture.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
         return try ModelContainer(for: schema, configurations: [config])
     }

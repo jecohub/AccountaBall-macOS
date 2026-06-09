@@ -29,6 +29,7 @@ func runAllTests() async {
     runTimelineCoalescerTests()
     runTimelineRangeTests()
     runPersistenceTests()
+    runFreeBallPersistenceTests()
     runEngineSessionTests()
     runSnapshotTests()
     runOpenRouterPromptTests()
