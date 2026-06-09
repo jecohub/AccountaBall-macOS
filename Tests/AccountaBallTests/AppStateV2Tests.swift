@@ -88,4 +88,11 @@ func runAppStateV2Tests() {
         s11.loadTasks()
         expect(s11.tasks.isEmpty, "cleared tasks do not survive load")
     }
+
+    suite("AppState_freeBall") {
+        let s = AppState()
+        expect(s.freeBallStartTime == nil, "no FreeBall start by default")
+        expect(s.freeBallRecap == nil, "no FreeBall recap by default")
+        expect(s.freeBallSummarizing == false, "not summarizing by default")
+    }
 }

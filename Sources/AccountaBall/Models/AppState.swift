@@ -31,6 +31,14 @@ final class AppState: ObservableObject {
     /// A revived allowance awaiting one-time user confirmation on reuse.
     @Published var pendingAllowanceConfirm: AllowanceConfirm? = nil
 
+    // FreeBall — passive observation mode bridges.
+    /// Wall-clock start of the active FreeBall session (drives the live timer).
+    @Published var freeBallStartTime: Date? = nil
+    /// True while End Session is awaiting the summary (recap view shows a loading state).
+    @Published var freeBallSummarizing: Bool = false
+    /// The finished FreeBall recap, rendered by FreeBallRecapView.
+    @Published var freeBallRecap: FreeBallRecap? = nil
+
     /// Pre-committed drift budget for a session: the number of confirmed off-task
     /// drifts allowed before the commitment is broken. Set ONLY at setup — the
     /// in-the-moment user must not be able to raise it. Persisted in UserDefaults.
