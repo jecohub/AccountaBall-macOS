@@ -1,3 +1,4 @@
+import Foundation
 @testable import AccountaBall
 
 func runFreeBallSummarizeTests() {
@@ -29,5 +30,21 @@ func runFreeBallSummarizeTests() {
         expect(prompt.contains("editing main.swift"), "transcript text included")
         expect(prompt.contains("Lots of email."), "past recap included")
         expect(prompt.contains("reply to vendor"), "past open threads fed forward")
+    }
+
+    suite("FreeBallRecap_fromSession") {
+        if #available(macOS 14, *) {
+            let s = FreeBallSession(startedAt: Date(timeIntervalSince1970: 1000))
+            s.endedAt = Date(timeIntervalSince1970: 1600)   // 600s
+            s.narrative = "did stuff"; s.workingOn = ["W"]; s.openThreads = ["O"]
+            let r = FreeBallRecap(from: s)
+            expect(r.duration == 600, "duration from start/end")
+            expect(r.narrative == "did stuff", "narrative copied")
+            expect(r.workingOn == ["W"], "workingOn copied")
+            expect(r.openThreads == ["O"], "openThreads copied")
+            expect(r.recapPending == false, "pending copied")
+        } else {
+            expect(true, "skipped pre-macOS-14")
+        }
     }
 }

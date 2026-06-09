@@ -40,3 +40,15 @@ struct FreeBallRecap: Equatable {
     let openThreads: [String]
     let recapPending: Bool   // AI was unavailable at End Session; raw kept for later
 }
+
+@available(macOS 14, *)
+extension FreeBallRecap {
+    /// Build a recap from a stored session (history browser + re-open).
+    init(from s: FreeBallSession) {
+        let end = s.endedAt ?? s.startedAt
+        self.init(date: end, duration: end.timeIntervalSince(s.startedAt),
+                  narrative: s.narrative, categories: s.categories, insight: s.insight,
+                  workingOn: s.workingOn, people: s.people, codeContext: s.codeContext,
+                  openThreads: s.openThreads, recapPending: s.recapPending)
+    }
+}
