@@ -33,7 +33,9 @@ enum AppConstants {
     static let freeBallDedupThreshold: Double = 0.85
 
     /// FreeBall: max characters of deduped transcript fed to the summarizer.
-    static let freeBallMaxTranscriptChars: Int = 12000
+    /// Larger now that the summarize timeout is generous — context extraction
+    /// needs the actual names/filenames/threads to survive truncation.
+    static let freeBallMaxTranscriptChars: Int = 28000
     /// FreeBall: a session with less total captured text than this is "trivial" —
     /// skip the AI call and show a gentle not-enough-yet recap.
     static let freeBallMinCharsToSummarize: Int = 40

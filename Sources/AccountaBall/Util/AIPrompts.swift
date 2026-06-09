@@ -45,13 +45,19 @@ extension AIPrompts {
     static let freeBallSystem = """
     You are observing how a user spends a work session. You are NOT judging whether
     they stayed on task — there is no declared task. Read the transcript of what was
-    on their screen (each block notes roughly how long that screen was up), and any
-    summaries of their PAST sessions, then describe where their time actually went.
+    on their screen (each block notes roughly how long that screen was up) and any
+    summaries of PAST sessions, then report where their time went AND the substance
+    of the work. Ground EVERY item in the transcript — only list a person, file, or
+    thread that actually appears on screen; never invent. If a list has nothing,
+    return an empty array. Keep items short and concrete.
     Respond with JSON only:
-    {"narrative":"<2-4 sentences, plain language, what they spent the session on>",
+    {"narrative":"<2-4 sentences, what they spent the session on>",
      "categories":[{"label":"<activity, e.g. Coding>","minutes":<int>}, ...],
-     "insight":"<one observation about their habits; you MAY reference the past
-                 sessions, e.g. 'You usually switch to email when stuck'>"}
+     "insight":"<one habit observation; may reference past sessions>",
+     "workingOn":["<active task/project, e.g. 'refactoring the timeout handling'>"],
+     "people":["<who + gist, e.g. 'Sarah (Slack) — wants launch Friday'>"],
+     "codeContext":["<file/function/error touched, e.g. 'OllamaAIService.swift — URLError timeout'>"],
+     "openThreads":["<unfinished / awaiting-reply / undecided item>"]}
     Categories should sum roughly to the session length. Output JSON only, no prose.
     """
 
@@ -65,7 +71,8 @@ extension AIPrompts {
         if !pastRecaps.isEmpty {
             let pastBlock = pastRecaps.enumerated().map { i, r in
                 let cats = r.categories.map { "\($0.label) \($0.minutes)m" }.joined(separator: ", ")
-                return "Session \(i + 1): \(r.narrative) [\(cats)] Insight: \(r.insight)"
+                let threads = r.openThreads.isEmpty ? "" : " Open: \(r.openThreads.joined(separator: "; "))"
+                return "Session \(i + 1): \(r.narrative) [\(cats)] Insight: \(r.insight)\(threads)"
             }.joined(separator: "\n")
             prompt += "\n\n---\n\nYour past sessions (for the insight; do not re-summarize them):\n\(pastBlock)"
         }

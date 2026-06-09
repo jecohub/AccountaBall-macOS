@@ -24,9 +24,10 @@ func runFreeBallSummarizeTests() {
 
     suite("FreeBallSummarize_prompt") {
         let transcript = [FreeBallTranscriptEntry(text: "editing main.swift", seconds: 120)]
-        let past = [FreeBallPastRecap(narrative: "Lots of email.", categories: [CategorySpan(label: "Email", minutes: 30)], insight: "Mornings are emaily.", openThreads: [])]
+        let past = [FreeBallPastRecap(narrative: "Lots of email.", categories: [CategorySpan(label: "Email", minutes: 30)], insight: "Mornings are emaily.", openThreads: ["reply to vendor"])]
         let prompt = AIPrompts.buildFreeBallPrompt(transcript: transcript, pastRecaps: past)
         expect(prompt.contains("editing main.swift"), "transcript text included")
         expect(prompt.contains("Lots of email."), "past recap included")
+        expect(prompt.contains("reply to vendor"), "past open threads fed forward")
     }
 }
