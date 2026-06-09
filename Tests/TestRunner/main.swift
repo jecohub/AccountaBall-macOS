@@ -49,6 +49,7 @@ func runAllTests() async {
     await runEngineAvailabilityTests()
     await runEngineSettleWindowTests()
     await runEnginePromptGateTests()
+    await runFreeBallEngineTests()
 
     reportAndExit()
 }
