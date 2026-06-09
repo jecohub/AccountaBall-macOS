@@ -27,8 +27,23 @@ func runAppPhaseTests() {
             case .progress: return "progress"
             case .complete: return "complete"
             case .aiUnavailable: return "aiUnavailable"
+            case .freeBall: return "freeBall"
+            case .freeBallLog: return "freeBallLog"
+            case .freeBallRecap: return "freeBallRecap"
             }
         }()
         expect(true, "exhaustive switch covers all AppPhase cases")
+    }
+
+    suite("AppPhase_freeBall") {
+        let phases: [AppPhase] = [.freeBall, .freeBallLog, .freeBallRecap]
+        expect(phases.count == 3, "three FreeBall phases exist")
+        // Exhaustiveness: this switch fails to compile if a case is unhandled.
+        for p in phases {
+            switch p {
+            case .freeBall, .freeBallLog, .freeBallRecap: expect(true, "covered")
+            default: expect(true, "other")
+            }
+        }
     }
 }

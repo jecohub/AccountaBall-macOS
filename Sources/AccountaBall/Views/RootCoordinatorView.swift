@@ -61,6 +61,11 @@ struct RootCoordinatorView: View {
                     onQuit: { NSApp.terminate(nil) }
                 )
                 .transition(.opacity)
+
+            case .freeBall, .freeBallLog, .freeBallRecap:
+                // Placeholder — real views land in Tasks 10–12.
+                Color.black.ignoresSafeArea()
+                    .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: state.appPhase)

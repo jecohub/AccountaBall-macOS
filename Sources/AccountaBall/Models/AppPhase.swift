@@ -9,4 +9,8 @@ enum AppPhase: Equatable {
     case progress
     case complete
     case aiUnavailable
+    // FreeBall — passive observation mode (separate engine).
+    case freeBall       // collapsed calm "observing" ball
+    case freeBallLog    // live session log: timer + End Session
+    case freeBallRecap  // post-session summary + breakdown
 }

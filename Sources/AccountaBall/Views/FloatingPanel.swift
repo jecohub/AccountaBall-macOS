@@ -62,6 +62,15 @@ class FloatingPanel: NSPanel {
             setContentSize(clampedToScreen(NSSize(width: 340, height: 380))); center()
         case .complete:
             setContentSize(clampedToScreen(NSSize(width: 600, height: 560))); center()
+        case .freeBall:
+            // Small calm ball peeking at the edge, like .session.
+            anchorRightEdge(size: NSSize(width: 130, height: 170))
+        case .freeBallLog:
+            // Compact centered card: timer + End Session.
+            setContentSize(clampedToScreen(NSSize(width: 300, height: 260))); center()
+        case .freeBallRecap:
+            // Roomy centered recap card (narrative + bars + insight).
+            setContentSize(clampedToScreen(NSSize(width: 520, height: 540))); center()
         }
     }
 
