@@ -94,5 +94,6 @@ func runAppStateV2Tests() {
         expect(s.freeBallStartTime == nil, "no FreeBall start by default")
         expect(s.freeBallRecap == nil, "no FreeBall recap by default")
         expect(s.freeBallSummarizing == false, "not summarizing by default")
+        expect(s.freeBallViewingHistory == false, "not viewing history by default")
     }
 }

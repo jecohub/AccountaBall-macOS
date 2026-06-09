@@ -51,6 +51,11 @@ struct WelcomeView: View {
                             freeBallEngine.begin()
                         }
                         .buttonStyle(SecondaryButtonStyle())
+
+                        Button("Past sessions") {
+                            withAnimation { state.appPhase = .freeBallHistory }
+                        }
+                        .font(.caption).foregroundStyle(.white.opacity(0.5)).buttonStyle(.plain)
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }

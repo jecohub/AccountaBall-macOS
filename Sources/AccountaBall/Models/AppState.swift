@@ -38,6 +38,9 @@ final class AppState: ObservableObject {
     @Published var freeBallSummarizing: Bool = false
     /// The finished FreeBall recap, rendered by FreeBallRecapView.
     @Published var freeBallRecap: FreeBallRecap? = nil
+    /// True when the recap is being viewed from the history browser (Done returns
+    /// to the list, not to Welcome).
+    @Published var freeBallViewingHistory: Bool = false
 
     /// Pre-committed drift budget for a session: the number of confirmed off-task
     /// drifts allowed before the commitment is broken. Set ONLY at setup — the

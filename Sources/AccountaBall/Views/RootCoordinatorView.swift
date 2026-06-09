@@ -71,14 +71,29 @@ struct RootCoordinatorView: View {
                     .transition(.opacity)
             case .freeBallRecap:
                 FreeBallRecapView(onDone: {
-                    state.loadTasks()
-                    withAnimation { state.appPhase = .welcome }
+                    if state.freeBallViewingHistory {
+                        state.freeBallViewingHistory = false
+                        withAnimation { state.appPhase = .freeBallHistory }
+                    } else {
+                        state.loadTasks()
+                        withAnimation { state.appPhase = .welcome }
+                    }
                 })
                 .transition(.opacity)
 
             case .freeBallHistory:
-                // Placeholder — real view in Ctx Task 9.
-                Color.black.ignoresSafeArea().transition(.opacity)
+                if let ctx = freeBallEngine.modelContext {
+                    FreeBallHistoryView(modelContext: ctx,
+                        onOpen: { recap in
+                            state.freeBallRecap = recap
+                            state.freeBallViewingHistory = true
+                            withAnimation { state.appPhase = .freeBallRecap }
+                        },
+                        onBack: { withAnimation { state.appPhase = .welcome } })
+                    .transition(.opacity)
+                } else {
+                    Color.black.ignoresSafeArea().transition(.opacity)
+                }
             }
         }
         .animation(.easeInOut(duration: 0.3), value: state.appPhase)

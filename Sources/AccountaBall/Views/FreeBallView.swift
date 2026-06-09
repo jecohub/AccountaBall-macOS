@@ -103,13 +103,34 @@ struct FreeBallRecapView: View {
                         .background(Color.white.opacity(0.06))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
+
+                    contextSection("Working on", recap.workingOn)
+                    contextSection("People & conversations", recap.people)
+                    contextSection("Code context", recap.codeContext)
+                    contextSection("Open threads / next steps", recap.openThreads)
                 }
 
-                Button("Done", action: onDone)
-                    .buttonStyle(PrimaryButtonStyle())
-                    .frame(maxWidth: .infinity)
+                HStack {
+                    Button("Export") { FreeBallExport.export(recap) }
+                        .buttonStyle(SecondaryButtonStyle())
+                    Button("Done", action: onDone)
+                        .buttonStyle(PrimaryButtonStyle())
+                        .frame(maxWidth: .infinity)
+                }
             }
             .padding(24)
+        }
+    }
+
+    @ViewBuilder private func contextSection(_ title: String, _ items: [String]) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.caption).foregroundStyle(.white.opacity(0.5))
+                ForEach(items, id: \.self) {
+                    Text("• \($0)").font(.system(size: 13)).foregroundStyle(.white.opacity(0.9))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 
