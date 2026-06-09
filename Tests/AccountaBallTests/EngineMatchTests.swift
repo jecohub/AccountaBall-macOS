@@ -27,7 +27,7 @@ func runEngineMatchTests() async {
             }
             func healthCheck() async -> Bool { true }
             func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] { [] }
-            func summarizeFreeBall(transcript: [FreeBallTranscriptEntry], pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary { FreeBallSummary(narrative: "", categories: [], insight: "") }
+            func summarizeFreeBall(transcript: [FreeBallTranscriptEntry], pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary { FreeBallSummary(narrative: "", categories: [], insight: "", workingOn: [], people: [], codeContext: [], openThreads: []) }
         }
         let s = AppState()
         let engine = AccountabilityEngine(state: s, captureService: ScreenCaptureService(), ocrService: OCRService(), aiService: NoMatchAI(), notificationService: NotificationService())

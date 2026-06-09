@@ -79,7 +79,7 @@ class ClaudeAIService: AIService {
 
     func summarizeFreeBall(transcript: [FreeBallTranscriptEntry],
                            pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary {
-        FreeBallSummary(narrative: "", categories: [], insight: "")
+        FreeBallSummary(narrative: "", categories: [], insight: "", workingOn: [], people: [], codeContext: [], openThreads: [])
     }
 
     static func parseResponse(_ raw: String) -> BallState {

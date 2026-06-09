@@ -103,8 +103,9 @@ final class FreeBallEngine {
         if totalChars < AppConstants.freeBallMinCharsToSummarize {
             session.narrative = "Not enough captured to summarize yet."
             try? ctx.save()
-            publishRecap(duration: duration, summary:
-                FreeBallSummary(narrative: session.narrative, categories: [], insight: ""),
+            publishRecap(date: session.startedAt, duration: duration, summary:
+                FreeBallSummary(narrative: session.narrative, categories: [], insight: "",
+                                workingOn: [], people: [], codeContext: [], openThreads: []),
                 pending: false)
             finishEnd()
             return
@@ -120,14 +121,14 @@ final class FreeBallEngine {
             session.insight = summary.insight
             session.recapPending = false
             try? ctx.save()
-            publishRecap(duration: duration, summary: summary, pending: false)
+            publishRecap(date: session.startedAt, duration: duration, summary: summary, pending: false)
         } catch {
             dbg("summarizeFreeBall failed: \(error)")
             session.recapPending = true     // keep raw captures for a later pass
             try? ctx.save()
             state.setupHint = "Couldn't summarize this FreeBall session — the AI was unreachable. Your capture was saved."
-            publishRecap(duration: duration,
-                summary: FreeBallSummary(narrative: "", categories: [], insight: ""),
+            publishRecap(date: session.startedAt, duration: duration,
+                summary: FreeBallSummary(narrative: "", categories: [], insight: "", workingOn: [], people: [], codeContext: [], openThreads: []),
                 pending: true)
         }
         finishEnd()
@@ -138,10 +139,12 @@ final class FreeBallEngine {
         currentSession = nil
     }
 
-    private func publishRecap(duration: TimeInterval, summary: FreeBallSummary, pending: Bool) {
+    private func publishRecap(date: Date, duration: TimeInterval, summary: FreeBallSummary, pending: Bool) {
         state.freeBallRecap = FreeBallRecap(
-            duration: duration, narrative: summary.narrative,
-            categories: summary.categories, insight: summary.insight, recapPending: pending)
+            date: date, duration: duration, narrative: summary.narrative,
+            categories: summary.categories, insight: summary.insight,
+            workingOn: summary.workingOn, people: summary.people,
+            codeContext: summary.codeContext, openThreads: summary.openThreads, recapPending: pending)
     }
 
     /// Most recent completed recaps (excluding this session), capped, as cross-session context.
@@ -152,6 +155,6 @@ final class FreeBallEngine {
             .filter { $0.id != session.id && $0.endedAt != nil && !$0.recapPending && !$0.narrative.isEmpty }
             .sorted { ($0.endedAt ?? .distantPast) > ($1.endedAt ?? .distantPast) }
             .prefix(AppConstants.freeBallPastRecapCap)
-            .map { FreeBallPastRecap(narrative: $0.narrative, categories: $0.categories, insight: $0.insight) }
+            .map { FreeBallPastRecap(narrative: $0.narrative, categories: $0.categories, insight: $0.insight, openThreads: []) }
     }
 }

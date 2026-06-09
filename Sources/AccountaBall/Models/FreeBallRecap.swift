@@ -12,6 +12,7 @@ struct FreeBallPastRecap: Equatable {
     let narrative: String
     let categories: [CategorySpan]
     let insight: String
+    let openThreads: [String]
 }
 
 /// The AI's structured output for one ended session.
@@ -19,13 +20,23 @@ struct FreeBallSummary: Equatable {
     let narrative: String
     let categories: [CategorySpan]
     let insight: String
+    // Context extraction — grounded in the session transcript.
+    let workingOn: [String]
+    let people: [String]
+    let codeContext: [String]
+    let openThreads: [String]
 }
 
 /// UI-facing recap published to AppState and rendered by FreeBallRecapView.
 struct FreeBallRecap: Equatable {
+    let date: Date
     let duration: TimeInterval
     let narrative: String
     let categories: [CategorySpan]
     let insight: String
+    let workingOn: [String]
+    let people: [String]
+    let codeContext: [String]
+    let openThreads: [String]
     let recapPending: Bool   // AI was unavailable at End Session; raw kept for later
 }

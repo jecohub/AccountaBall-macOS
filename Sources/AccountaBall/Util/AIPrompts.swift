@@ -77,7 +77,8 @@ extension AIPrompts {
         guard let open = json.firstIndex(of: "{"), let close = json.lastIndex(of: "}"),
               let data = String(json[open...close]).data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return FreeBallSummary(narrative: "", categories: [], insight: "")
+            return FreeBallSummary(narrative: "", categories: [], insight: "",
+                                   workingOn: [], people: [], codeContext: [], openThreads: [])
         }
         let narrative = (obj["narrative"] as? String) ?? ""
         let insight = (obj["insight"] as? String) ?? ""
@@ -86,7 +87,12 @@ extension AIPrompts {
             let mins = (d["minutes"] as? Int) ?? Int((d["minutes"] as? Double) ?? 0)
             return CategorySpan(label: label, minutes: mins)
         }
-        return FreeBallSummary(narrative: narrative, categories: cats, insight: insight)
+        let strings: (String) -> [String] = { key in
+            (obj[key] as? [String])?.compactMap { $0.isEmpty ? nil : $0 } ?? []
+        }
+        return FreeBallSummary(narrative: narrative, categories: cats, insight: insight,
+                               workingOn: strings("workingOn"), people: strings("people"),
+                               codeContext: strings("codeContext"), openThreads: strings("openThreads"))
     }
 }
 

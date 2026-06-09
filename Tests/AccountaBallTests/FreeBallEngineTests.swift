@@ -5,7 +5,8 @@ import SwiftData
 /// Fake returning a fixed FreeBall summary; records that it was called.
 final class FreeBallFakeAI: AIService {
     var called = false
-    var summary = FreeBallSummary(narrative: "N", categories: [CategorySpan(label: "Coding", minutes: 5)], insight: "I")
+    var summary = FreeBallSummary(narrative: "N", categories: [CategorySpan(label: "Coding", minutes: 5)], insight: "I",
+                                  workingOn: [], people: [], codeContext: [], openThreads: [])
     func classify(task: String, screenText: String) async throws -> BallState { .onTask }
     func classifyMulti(tasks: [TaskItem], screenText: String, allowanceRulesByIndex: [Int: [String]]) async throws -> MultiTaskResult { .onTask(index: 0, label: "") }
     func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict { ExcuseVerdict(justified: false, taskIndex: nil, rule: "") }
