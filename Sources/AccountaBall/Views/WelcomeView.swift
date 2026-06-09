@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     @EnvironmentObject var state: AppState
+    var freeBallEngine: FreeBallEngine
     @State private var bouncePhase = 0
     @State private var showContent = false
     @State private var ballY: CGFloat = -150
@@ -45,6 +46,11 @@ struct WelcomeView: View {
                             withAnimation { state.appPhase = .setup }
                         }
                         .buttonStyle(PrimaryButtonStyle())
+
+                        Button("FreeBall") {
+                            freeBallEngine.begin()
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -128,6 +134,18 @@ struct PrimaryButtonStyle: ButtonStyle {
             .padding(.vertical, 12)
             .background(Color.orange)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+    }
+}
+
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(.orange)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 10).stroke(Color.orange, lineWidth: 1.5))
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
     }
 }

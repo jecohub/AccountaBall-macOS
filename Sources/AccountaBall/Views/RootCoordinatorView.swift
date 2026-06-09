@@ -3,13 +3,14 @@ import SwiftUI
 struct RootCoordinatorView: View {
     @EnvironmentObject var state: AppState
     var engine: AccountabilityEngine
+    var freeBallEngine: FreeBallEngine
     var aiService: AIService
 
     var body: some View {
         ZStack {
             switch state.appPhase {
             case .idle, .welcome:
-                WelcomeView()
+                WelcomeView(freeBallEngine: freeBallEngine)
                     .transition(.opacity)
 
             case .setup:
@@ -62,10 +63,18 @@ struct RootCoordinatorView: View {
                 )
                 .transition(.opacity)
 
-            case .freeBall, .freeBallLog, .freeBallRecap:
-                // Placeholder — real views land in Tasks 10–12.
-                Color.black.ignoresSafeArea()
+            case .freeBall:
+                FreeBallBallView()
                     .transition(.opacity)
+            case .freeBallLog:
+                FreeBallSessionView(engine: freeBallEngine)
+                    .transition(.opacity)
+            case .freeBallRecap:
+                FreeBallRecapView(onDone: {
+                    state.loadTasks()
+                    withAnimation { state.appPhase = .welcome }
+                })
+                .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: state.appPhase)

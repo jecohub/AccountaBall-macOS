@@ -6,6 +6,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: FloatingPanel?
     let state = AppState()
     var engine: AccountabilityEngine?
+    var freeBallEngine: FreeBallEngine?
     let notificationService = NotificationService()
     var modelContainer: ModelContainer?
 
@@ -63,10 +64,32 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         eng.modelContext = container.mainContext
         self.engine = eng
 
+        let freeBallEngine = FreeBallEngine(
+            state: state,
+            captureService: captureService,
+            ocrService: ocrService,
+            aiService: aiService
+        )
+        freeBallEngine.modelContext = container.mainContext
+        self.freeBallEngine = freeBallEngine
+
         // Load the pre-committed drift limit at launch (beside the task load that
         // RootCoordinatorView triggers on appear), so the engine's
         // commitmentBroken trigger reads the user's setup value from the start.
         state.loadDriftLimit()
+
+        // A FreeBall session with no endedAt was interrupted (quit/crash). Close it
+        // silently and mark it recap-pending so its raw captures aren't lost and it
+        // doesn't look "live" forever.
+        Task { @MainActor in
+            let ctx = container.mainContext
+            let dangling = (try? ctx.fetch(FetchDescriptor<FreeBallSession>())) ?? []
+            for s in dangling where s.endedAt == nil {
+                s.endedAt = .now
+                s.recapPending = true
+            }
+            try? ctx.save()
+        }
 
         // Startup AI reachability probe — if the provider is unreachable at
         // launch, show the AI-unavailable card immediately rather than waiting
@@ -143,7 +166,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = FloatingPanel()
         panel.title = "AccountaBall"
         panel.contentView = NSHostingView(
-            rootView: RootCoordinatorView(engine: eng, aiService: aiService)
+            rootView: RootCoordinatorView(engine: eng, freeBallEngine: freeBallEngine, aiService: aiService)
                 .environmentObject(state)
         )
         panel.resize(for: .welcome)
