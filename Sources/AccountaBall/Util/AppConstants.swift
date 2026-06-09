@@ -39,4 +39,8 @@ enum AppConstants {
     static let freeBallMinCharsToSummarize: Int = 40
     /// FreeBall: how many recent past-session recaps to feed as cross-session context.
     static let freeBallPastRecapCap: Int = 10
+    /// FreeBall: per-request timeout for the End-Session summarize call. Much
+    /// longer than a classify call because it's a big generation over the whole
+    /// session transcript on a local model.
+    static let freeBallSummarizeTimeout: TimeInterval = 120
 }

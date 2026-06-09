@@ -13,7 +13,11 @@ final class OllamaAIService: AIService {
         self.model = model
         let cfg = URLSessionConfiguration.default
         cfg.timeoutIntervalForRequest = 20
-        cfg.timeoutIntervalForResource = 30
+        // Generous resource ceiling: a FreeBall summarize of a long session is a
+        // big generation on a local model and can take well over 30s. This is a
+        // max, not a wait — fast classify calls still return immediately and keep
+        // their own 20s per-request idle timeout.
+        cfg.timeoutIntervalForResource = AppConstants.freeBallSummarizeTimeout + 10
         self.session = URLSession(configuration: cfg)
     }
 
@@ -204,18 +208,21 @@ final class OllamaAIService: AIService {
             ],
             "required": ["narrative", "categories", "insight"]
         ]
-        let raw: String = try await send(system: AIPrompts.freeBallSystem, user: prompt, schema: schema)
+        let raw: String = try await send(system: AIPrompts.freeBallSystem, user: prompt,
+                                         schema: schema, timeout: AppConstants.freeBallSummarizeTimeout)
         return AIPrompts.parseFreeBallSummary(raw)
     }
 
     // MARK: - private
 
-    private func send(system: String, user: String, schema: [String: Any]) async throws -> String {
+    private func send(system: String, user: String, schema: [String: Any],
+                      timeout: TimeInterval? = nil) async throws -> String {
         guard let endpoint = URL(string: "\(host)/api/chat") else {
             throw URLError(.badURL)
         }
         let body = Self.chatBody(model: model, system: system, user: user, jsonSchema: schema)
         var request = URLRequest(url: endpoint)
+        if let timeout { request.timeoutInterval = timeout }
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
