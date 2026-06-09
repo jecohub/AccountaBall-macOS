@@ -71,6 +71,9 @@ class FloatingPanel: NSPanel {
         case .freeBallRecap:
             // Roomy centered recap card (narrative + bars + insight).
             setContentSize(clampedToScreen(NSSize(width: 520, height: 540))); center()
+        case .freeBallHistory:
+            // Past-sessions list.
+            setContentSize(clampedToScreen(NSSize(width: 460, height: 560))); center()
         }
     }
 

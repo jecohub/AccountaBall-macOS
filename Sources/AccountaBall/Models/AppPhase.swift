@@ -13,4 +13,5 @@ enum AppPhase: Equatable {
     case freeBall       // collapsed calm "observing" ball
     case freeBallLog    // live session log: timer + End Session
     case freeBallRecap  // post-session summary + breakdown
+    case freeBallHistory  // past-sessions browser
 }

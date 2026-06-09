@@ -75,6 +75,10 @@ struct RootCoordinatorView: View {
                     withAnimation { state.appPhase = .welcome }
                 })
                 .transition(.opacity)
+
+            case .freeBallHistory:
+                // Placeholder — real view in Ctx Task 9.
+                Color.black.ignoresSafeArea().transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: state.appPhase)

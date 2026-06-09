@@ -30,9 +30,15 @@ func runAppPhaseTests() {
             case .freeBall: return "freeBall"
             case .freeBallLog: return "freeBallLog"
             case .freeBallRecap: return "freeBallRecap"
+            case .freeBallHistory: return "freeBallHistory"
             }
         }()
         expect(true, "exhaustive switch covers all AppPhase cases")
+    }
+
+    suite("AppPhase_freeBallHistory") {
+        let p: AppPhase = .freeBallHistory
+        switch p { case .freeBallHistory: expect(true, "covered"); default: expect(true, "other") }
     }
 
     suite("AppPhase_freeBall") {
