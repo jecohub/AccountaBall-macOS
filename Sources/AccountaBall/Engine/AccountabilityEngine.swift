@@ -132,15 +132,7 @@ class AccountabilityEngine {
     /// peripheral context (so a relevant reference in another window still
     /// registers). With no focused window, the full screen is the only signal.
     func screenText(from frame: CapturedFrame) async -> String {
-        guard let focused = frame.focused else {
-            return await ocrService.extractText(from: frame.full)
-        }
-        let primary = await ocrService.extractText(from: focused)
-        let full = await ocrService.extractText(from: frame.full)
-        let light = String(full.prefix(AppConstants.peripheralScreenChars))
-        if primary.isEmpty { return light }
-        if light.isEmpty { return primary }
-        return "Active window:\n\(primary)\n\nAlso visible on screen:\n\(light)"
+        await buildScreenText(from: frame, ocr: ocrService)
     }
 
     /// Resume watching after an off-task prompt.
