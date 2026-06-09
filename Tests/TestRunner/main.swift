@@ -33,6 +33,7 @@ func runAllTests() async {
     runFreeBallDedupTests()
     runFreeBallCondenserTests()
     runFreeBallSummarizeTests()
+    runFreeBallMarkdownTests()
     runEngineSessionTests()
     runSnapshotTests()
     runOpenRouterPromptTests()
