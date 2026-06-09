@@ -6,7 +6,7 @@ import SwiftData
 final class FreeBallFakeAI: AIService {
     var called = false
     var summary = FreeBallSummary(narrative: "N", categories: [CategorySpan(label: "Coding", minutes: 5)], insight: "I",
-                                  workingOn: [], people: [], codeContext: [], openThreads: [])
+                                  workingOn: ["W"], people: ["P"], codeContext: ["C"], openThreads: ["O"])
     func classify(task: String, screenText: String) async throws -> BallState { .onTask }
     func classifyMulti(tasks: [TaskItem], screenText: String, allowanceRulesByIndex: [Int: [String]]) async throws -> MultiTaskResult { .onTask(index: 0, label: "") }
     func evaluateExcuse(excuse: String, tasks: [TaskItem], screenText: String) async throws -> ExcuseVerdict { ExcuseVerdict(justified: false, taskIndex: nil, rule: "") }
@@ -74,6 +74,8 @@ func runFreeBallEngineTests() async {
         expect(ai.called, "summarizeFreeBall called at end")
         expect(state.appPhase == .freeBallRecap, "end -> .freeBallRecap")
         expect(state.freeBallRecap?.narrative == "N", "recap published")
+        expect(state.freeBallRecap?.workingOn == ["W"], "workingOn published to recap")
+        expect(state.freeBallRecap?.openThreads == ["O"], "openThreads published to recap")
         expect(state.freeBallSummarizing == false, "summarizing cleared")
         expect(eng.currentSession == nil, "session closed")
     }

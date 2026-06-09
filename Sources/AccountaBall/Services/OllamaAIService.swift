@@ -204,9 +204,14 @@ final class OllamaAIService: AIService {
                 "categories": ["type": "array", "items": ["type": "object",
                     "properties": ["label": ["type": "string"], "minutes": ["type": "integer"]],
                     "required": ["label", "minutes"]]],
-                "insight": ["type": "string"]
+                "insight": ["type": "string"],
+                "workingOn": ["type": "array", "items": ["type": "string"]],
+                "people": ["type": "array", "items": ["type": "string"]],
+                "codeContext": ["type": "array", "items": ["type": "string"]],
+                "openThreads": ["type": "array", "items": ["type": "string"]]
             ],
-            "required": ["narrative", "categories", "insight"]
+            "required": ["narrative", "categories", "insight",
+                         "workingOn", "people", "codeContext", "openThreads"]
         ]
         let raw: String = try await send(system: AIPrompts.freeBallSystem, user: prompt,
                                          schema: schema, timeout: AppConstants.freeBallSummarizeTimeout)

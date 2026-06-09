@@ -119,6 +119,10 @@ final class FreeBallEngine {
             session.narrative = summary.narrative
             session.categories = summary.categories
             session.insight = summary.insight
+            session.workingOn = summary.workingOn
+            session.people = summary.people
+            session.codeContext = summary.codeContext
+            session.openThreads = summary.openThreads
             session.recapPending = false
             try? ctx.save()
             publishRecap(date: session.startedAt, duration: duration, summary: summary, pending: false)
@@ -155,6 +159,6 @@ final class FreeBallEngine {
             .filter { $0.id != session.id && $0.endedAt != nil && !$0.recapPending && !$0.narrative.isEmpty }
             .sorted { ($0.endedAt ?? .distantPast) > ($1.endedAt ?? .distantPast) }
             .prefix(AppConstants.freeBallPastRecapCap)
-            .map { FreeBallPastRecap(narrative: $0.narrative, categories: $0.categories, insight: $0.insight, openThreads: []) }
+            .map { FreeBallPastRecap(narrative: $0.narrative, categories: $0.categories, insight: $0.insight, openThreads: $0.openThreads) }
     }
 }
