@@ -41,6 +41,53 @@ extension AIPrompts {
             return PerTaskComment(taskTitle: t, comment: c, suggestion: sug)
         }
     }
+
+    static let freeBallSystem = """
+    You are observing how a user spends a work session. You are NOT judging whether
+    they stayed on task — there is no declared task. Read the transcript of what was
+    on their screen (each block notes roughly how long that screen was up), and any
+    summaries of their PAST sessions, then describe where their time actually went.
+    Respond with JSON only:
+    {"narrative":"<2-4 sentences, plain language, what they spent the session on>",
+     "categories":[{"label":"<activity, e.g. Coding>","minutes":<int>}, ...],
+     "insight":"<one observation about their habits; you MAY reference the past
+                 sessions, e.g. 'You usually switch to email when stuck'>"}
+    Categories should sum roughly to the session length. Output JSON only, no prose.
+    """
+
+    /// Build the user-side prompt: this session's deduped transcript + capped past recaps.
+    static func buildFreeBallPrompt(transcript: [FreeBallTranscriptEntry],
+                                    pastRecaps: [FreeBallPastRecap]) -> String {
+        let body = transcript.map { e in
+            "[\(Int((e.seconds/60).rounded()))m on screen]\n\(e.text)"
+        }.joined(separator: "\n\n---\n\n")
+        var prompt = "This session — what was on screen:\n\n\(body)"
+        if !pastRecaps.isEmpty {
+            let pastBlock = pastRecaps.enumerated().map { i, r in
+                let cats = r.categories.map { "\($0.label) \($0.minutes)m" }.joined(separator: ", ")
+                return "Session \(i + 1): \(r.narrative) [\(cats)] Insight: \(r.insight)"
+            }.joined(separator: "\n")
+            prompt += "\n\n---\n\nYour past sessions (for the insight; do not re-summarize them):\n\(pastBlock)"
+        }
+        return prompt
+    }
+
+    /// Parse the AI's JSON into a FreeBallSummary. Returns an empty summary on any failure.
+    static func parseFreeBallSummary(_ json: String) -> FreeBallSummary {
+        guard let open = json.firstIndex(of: "{"), let close = json.lastIndex(of: "}"),
+              let data = String(json[open...close]).data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return FreeBallSummary(narrative: "", categories: [], insight: "")
+        }
+        let narrative = (obj["narrative"] as? String) ?? ""
+        let insight = (obj["insight"] as? String) ?? ""
+        let cats: [CategorySpan] = ((obj["categories"] as? [[String: Any]]) ?? []).compactMap { d in
+            guard let label = d["label"] as? String else { return nil }
+            let mins = (d["minutes"] as? Int) ?? Int((d["minutes"] as? Double) ?? 0)
+            return CategorySpan(label: label, minutes: mins)
+        }
+        return FreeBallSummary(narrative: narrative, categories: cats, insight: insight)
+    }
 }
 
 /// Shared prompt strings used by AIService implementations.
