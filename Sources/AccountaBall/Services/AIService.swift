@@ -18,4 +18,10 @@ protocol AIService {
     /// readable comment + optional suggestion. Returns per-task comments in the
     /// same order.
     func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment]
+
+    /// Passive-mode summary. Reads this session's deduped transcript plus distilled
+    /// past-session recaps; returns a narrative + categorized time breakdown +
+    /// cross-session insight. The ONLY AI call FreeBall makes (at End Session).
+    func summarizeFreeBall(transcript: [FreeBallTranscriptEntry],
+                           pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary
 }

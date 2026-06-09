@@ -190,6 +190,24 @@ final class OllamaAIService: AIService {
         return AIPrompts.parseSessionComments(raw, titles: perTask.map { $0.title })
     }
 
+    func summarizeFreeBall(transcript: [FreeBallTranscriptEntry],
+                           pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary {
+        let prompt = AIPrompts.buildFreeBallPrompt(transcript: transcript, pastRecaps: pastRecaps)
+        let schema: [String: Any] = [
+            "type": "object",
+            "properties": [
+                "narrative": ["type": "string"],
+                "categories": ["type": "array", "items": ["type": "object",
+                    "properties": ["label": ["type": "string"], "minutes": ["type": "integer"]],
+                    "required": ["label", "minutes"]]],
+                "insight": ["type": "string"]
+            ],
+            "required": ["narrative", "categories", "insight"]
+        ]
+        let raw: String = try await send(system: AIPrompts.freeBallSystem, user: prompt, schema: schema)
+        return AIPrompts.parseFreeBallSummary(raw)
+    }
+
     // MARK: - private
 
     private func send(system: String, user: String, schema: [String: Any]) async throws -> String {

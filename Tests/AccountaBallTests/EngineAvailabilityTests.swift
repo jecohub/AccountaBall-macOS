@@ -18,6 +18,7 @@ private final class FlakyAI: AIService {
     func matchTask(query: String, candidates: [(id: String, title: String, summary: String)]) async throws -> (id: String, confident: Bool)? { nil }
     func healthCheck() async -> Bool { healthy }
     func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] { [] }
+    func summarizeFreeBall(transcript: [FreeBallTranscriptEntry], pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary { FreeBallSummary(narrative: "", categories: [], insight: "") }
 }
 
 @MainActor

@@ -77,6 +77,11 @@ class ClaudeAIService: AIService {
 
     func summarizeSession(perTask: [PerTaskSessionInput]) async throws -> [PerTaskComment] { [] }
 
+    func summarizeFreeBall(transcript: [FreeBallTranscriptEntry],
+                           pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary {
+        FreeBallSummary(narrative: "", categories: [], insight: "")
+    }
+
     static func parseResponse(_ raw: String) -> BallState {
         let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         switch cleaned {

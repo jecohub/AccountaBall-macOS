@@ -190,6 +190,14 @@ class OpenRouterAIService: AIService {
         return AIPrompts.parseSessionComments(raw, titles: perTask.map { $0.title })
     }
 
+    func summarizeFreeBall(transcript: [FreeBallTranscriptEntry],
+                           pastRecaps: [FreeBallPastRecap]) async throws -> FreeBallSummary {
+        let prompt = AIPrompts.buildFreeBallPrompt(transcript: transcript, pastRecaps: pastRecaps)
+        let raw = try await sendMessage(system: AIPrompts.freeBallSystem, user: prompt,
+                                        maxTokens: 700, responseFormatJSON: true)
+        return AIPrompts.parseFreeBallSummary(raw)
+    }
+
     static func parseMatch(_ raw: String) -> (id: String, confident: Bool)? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.uppercased().hasPrefix("MATCH:") else { return nil }
