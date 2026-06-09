@@ -30,6 +30,7 @@ func runAllTests() async {
     runTimelineRangeTests()
     runPersistenceTests()
     runFreeBallPersistenceTests()
+    runFreeBallDedupTests()
     runEngineSessionTests()
     runSnapshotTests()
     runOpenRouterPromptTests()

@@ -26,4 +26,9 @@ enum AppConstants {
     /// A drift is only confirmed after the user stays on the SAME off-task screen
     /// for this long. Switching off-task screens restarts the clock.
     static let driftConfirmSeconds: TimeInterval = 15
+
+    /// FreeBall: two consecutive OCR reads at or above this Jaccard word-set
+    /// similarity are treated as the same screen (extend the block instead of
+    /// writing a new one).
+    static let freeBallDedupThreshold: Double = 0.85
 }
