@@ -6,7 +6,7 @@ struct BasketballView: View {
     var rotation: Double = 0
 
     enum BallFace {
-        case none, happy, angry
+        case none, happy, angry, calm
     }
 
     var body: some View {
@@ -60,19 +60,25 @@ struct BasketballView: View {
             }
             .offset(y: -size * 0.05)
 
-            Path { path in
-                if showFace == .happy {
-                    path.addArc(center: CGPoint(x: size * 0.17, y: 0),
-                                radius: size * 0.17,
-                                startAngle: .degrees(0), endAngle: .degrees(180), clockwise: false)
-                } else {
-                    path.addArc(center: CGPoint(x: size * 0.17, y: size * 0.1),
-                                radius: size * 0.17,
-                                startAngle: .degrees(0), endAngle: .degrees(180), clockwise: true)
+            if showFace == .calm {
+                Rectangle()
+                    .fill(Color.black)
+                    .frame(width: size * 0.30, height: max(1.5, size / 30))
+            } else {
+                Path { path in
+                    if showFace == .happy {
+                        path.addArc(center: CGPoint(x: size * 0.17, y: 0),
+                                    radius: size * 0.17,
+                                    startAngle: .degrees(0), endAngle: .degrees(180), clockwise: false)
+                    } else {
+                        path.addArc(center: CGPoint(x: size * 0.17, y: size * 0.1),
+                                    radius: size * 0.17,
+                                    startAngle: .degrees(0), endAngle: .degrees(180), clockwise: true)
+                    }
                 }
+                .stroke(Color.black, lineWidth: max(1.5, size / 30))
+                .frame(width: size * 0.34, height: size * 0.2)
             }
-            .stroke(Color.black, lineWidth: max(1.5, size / 30))
-            .frame(width: size * 0.34, height: size * 0.2)
         }
     }
 }
