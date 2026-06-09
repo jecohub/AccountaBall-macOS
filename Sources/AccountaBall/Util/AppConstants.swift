@@ -31,4 +31,12 @@ enum AppConstants {
     /// similarity are treated as the same screen (extend the block instead of
     /// writing a new one).
     static let freeBallDedupThreshold: Double = 0.85
+
+    /// FreeBall: max characters of deduped transcript fed to the summarizer.
+    static let freeBallMaxTranscriptChars: Int = 12000
+    /// FreeBall: a session with less total captured text than this is "trivial" —
+    /// skip the AI call and show a gentle not-enough-yet recap.
+    static let freeBallMinCharsToSummarize: Int = 40
+    /// FreeBall: how many recent past-session recaps to feed as cross-session context.
+    static let freeBallPastRecapCap: Int = 10
 }
