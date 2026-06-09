@@ -14,6 +14,10 @@ func runFreeBallPersistenceTests() {
         session.categories = [CategorySpan(label: "Coding", minutes: 45),
                               CategorySpan(label: "Email", minutes: 10)]
         session.insight = "You code in long blocks."
+        session.workingOn = ["refactor timeout"]
+        session.people = ["Sarah (Slack)"]
+        session.codeContext = ["OllamaAIService.swift"]
+        session.openThreads = ["reply to Sarah"]
         let cap = FreeBallCapture(firstSeenAt: .now, lastSeenAt: .now, text: "hello world")
         session.captures.append(cap)
         ctx.insert(session)
@@ -25,5 +29,7 @@ func runFreeBallPersistenceTests() {
         expect(fetched.first?.categories.count == 2, "categories round-trip")
         expect(fetched.first?.categories.first?.label == "Coding", "category label round-trip")
         expect(fetched.first?.narrative == "Mostly coding.", "narrative round-trip")
+        expect(fetched.first?.workingOn == ["refactor timeout"], "workingOn round-trip")
+        expect(fetched.first?.openThreads == ["reply to Sarah"], "openThreads round-trip")
     }
 }

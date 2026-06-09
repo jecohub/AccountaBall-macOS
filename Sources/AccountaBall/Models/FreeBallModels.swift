@@ -19,6 +19,11 @@ final class FreeBallSession {
     var narrative: String = ""
     var categories: [CategorySpan] = []
     var insight: String = ""
+    // Context extraction (grounded in the transcript), kept long-term.
+    var workingOn: [String] = []
+    var people: [String] = []
+    var codeContext: [String] = []
+    var openThreads: [String] = []
     /// True when End Session couldn't reach the AI; raw captures kept for a later pass.
     var recapPending: Bool = false
     @Relationship(deleteRule: .cascade) var captures: [FreeBallCapture] = []
