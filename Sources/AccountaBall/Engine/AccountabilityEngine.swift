@@ -527,12 +527,16 @@ class AccountabilityEngine {
             }
             suspicionCount += 1
             state.activeTaskIndex = nil
-            // Same-screen dwell: keep the clock running while the off-task label is
-            // unchanged; restart it the moment the screen changes ("reset per screen").
-            if offTaskStreakStart == nil || !Self.activityMatches(label, offTaskStreakActivity) {
+            // Continuous off-task dwell: the clock starts on the first off-task read
+            // and keeps running across label wobble. Real OCR is noisy, so the
+            // model's screen label drifts frame-to-frame even on one static screen;
+            // resetting on every label change meant a genuine sustained drift never
+            // reached the threshold. The streak resets only when an on-task /
+            // ambiguous read clears it — i.e. when the user actually returns to work.
+            if offTaskStreakStart == nil {
                 offTaskStreakStart = now()
-                offTaskStreakActivity = label
             }
+            offTaskStreakActivity = label   // tracked for display; does not reset the clock
             let dwell = now().timeIntervalSince(offTaskStreakStart!)
             dbg("offTask (\"\(label)\") dwell=\(Int(dwell))s")
             if dwell >= AppConstants.driftConfirmSeconds, !inSettleWindow, state.appPhase == .session {

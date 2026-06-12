@@ -561,16 +561,28 @@ func runEngineSessionTests() {
             expect(engine.driftCount == 1, "exactly one drift logged on confirm")
         }
 
-        // 3. Switching off-task screens resets the clock.
+        // 3. Continuous off-task time accumulates across label changes / OCR wobble.
         do {
             let (state, engine, box) = makeEngine()
             engine.processResult(.offTask(label: "yt"))
             box.now = box.now.addingTimeInterval(8)
             engine.processResult(.offTask(label: "twitter"))
-            box.now = box.now.addingTimeInterval(8)
+            box.now = box.now.addingTimeInterval(8)   // 16s continuously off-task across labels
             engine.processResult(.offTask(label: "twitter"))
-            expect(state.appPhase == .session, "switching off-task screens restarts the dwell clock")
-            expect(engine.driftCount == 0, "no drift while no single screen is held ≥15s")
+            expect(state.appPhase == .offTask, "sustained off-task confirms across label changes (OCR-wobble fix)")
+            expect(engine.driftCount == 1, "one drift after 15s of continuous off-task")
+        }
+
+        // 3b. OCR wobble on ONE static screen (label changes every cycle) still confirms.
+        do {
+            let (state, engine, box) = makeEngine()
+            engine.processResult(.offTask(label: "YouTube — video A"))
+            box.now = box.now.addingTimeInterval(8)
+            engine.processResult(.offTask(label: "YouTube — video A (recommended)"))
+            box.now = box.now.addingTimeInterval(8)
+            engine.processResult(.offTask(label: "YouTube — watching, 2 min in"))
+            expect(state.appPhase == .offTask, "label wobble on one screen still confirms a drift")
+            expect(engine.driftCount == 1, "one drift after 15s on the same screen despite label drift")
         }
 
         // 4. On-task between off reads restarts the streak.
