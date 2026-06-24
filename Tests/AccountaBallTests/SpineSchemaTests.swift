@@ -10,7 +10,9 @@ func runSpineSchemaTests() {
         }
         let ctx = container.mainContext
         let sid = UUID()
-        let cap = Capture(firstSeenAt: .now, lastSeenAt: .now, text: "hello",
+        let t0 = Date()
+        let t1 = t0.addingTimeInterval(30)
+        let cap = Capture(firstSeenAt: t0, lastSeenAt: t1, text: "hello",
                           mode: "task", appHint: "Xcode", taskIndex: 0, sessionId: sid)
         ctx.insert(cap)
         try? ctx.save()
@@ -19,5 +21,8 @@ func runSpineSchemaTests() {
         expect(fetched.first?.mode == "task", "mode round-trips")
         expect(fetched.first?.taskIndex == 0, "taskIndex round-trips")
         expect(fetched.first?.sessionId == sid, "sessionId round-trips")
+        expect(fetched.first?.text == "hello", "text round-trips")
+        expect(fetched.first?.appHint == "Xcode", "appHint round-trips")
+        expect(fetched.first?.seconds == 30, "seconds computed after fetch")
     }
 }

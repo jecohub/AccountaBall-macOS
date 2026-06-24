@@ -14,6 +14,8 @@ final class Capture {
     var mode: String          // "task" | "free"
     var appHint: String?
     var taskIndex: Int?
+    /// Deliberate soft foreign key (not a SwiftData `@Relationship`): a Capture may belong to
+    /// either a WorkSession or a FreeBallSession, and a typed relationship can't reference two model types.
     var sessionId: UUID
     init(firstSeenAt: Date, lastSeenAt: Date, text: String, mode: String,
          appHint: String? = nil, taskIndex: Int? = nil, sessionId: UUID) {
