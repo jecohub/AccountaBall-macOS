@@ -24,5 +24,16 @@ func runSpineSchemaTests() {
         expect(fetched.first?.text == "hello", "text round-trips")
         expect(fetched.first?.appHint == "Xcode", "appHint round-trips")
         expect(fetched.first?.seconds == 30, "seconds computed after fetch")
+
+        let project = Project(title: "Windows port")
+        let thread = Thread(title: "fix panel sizing")
+        project.threads.append(thread)
+        ctx.insert(project)
+        try? ctx.save()
+        let projects = (try? ctx.fetch(FetchDescriptor<Project>())) ?? []
+        expect(projects.count == 1, "one Project persisted")
+        expect(projects.first?.threads.count == 1, "thread related via cascade")
+        expect(projects.first?.status == "active", "default status active")
+        expect(projects.first?.threads.first?.status == "open", "default thread status open")
     }
 }
