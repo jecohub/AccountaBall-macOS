@@ -32,8 +32,13 @@ func runSpineSchemaTests() {
         try? ctx.save()
         let projects = (try? ctx.fetch(FetchDescriptor<Project>())) ?? []
         expect(projects.count == 1, "one Project persisted")
-        expect(projects.first?.threads.count == 1, "thread related via cascade")
+        expect(projects.first?.threads.count == 1, "thread persisted via relationship")
         expect(projects.first?.status == "active", "default status active")
         expect(projects.first?.threads.first?.status == "open", "default thread status open")
+
+        ctx.delete(project)
+        try? ctx.save()
+        expect(((try? ctx.fetch(FetchDescriptor<Project>())) ?? []).isEmpty, "project deleted")
+        expect(((try? ctx.fetch(FetchDescriptor<AccountaBall.Thread>())) ?? []).isEmpty, "cascade removed orphaned thread")
     }
 }

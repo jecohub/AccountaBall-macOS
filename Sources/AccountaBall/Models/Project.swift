@@ -1,6 +1,9 @@
 import SwiftData
 import Foundation
 
+/// Spine entities. A `Project` is a long-lived workstream; a `Thread` is an open
+/// loop owned by a project (via cascade). These are part of the
+/// Project→Thread→Contribution→Capture context spine.
 @available(macOS 14, *)
 @Model
 final class Project {
@@ -18,6 +21,7 @@ final class Project {
     init(title: String) { self.title = title }
 }
 
+/// Note: shadows Foundation.Thread; this module never references the latter.
 @available(macOS 14, *)
 @Model
 final class Thread {
