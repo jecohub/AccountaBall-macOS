@@ -45,7 +45,8 @@ func runSpineSchemaTests() {
         let contrib = Contribution(at: .now, projectId: pid, threadId: tid,
                                    sessionId: sid2, sessionKind: "task", minutes: 25,
                                    summary: "Reshaped the confirm card")
-        let judgment = Judgment(at: .now, captureRangeStart: .now, captureRangeEnd: .now,
+        let r0 = Date()
+        let judgment = Judgment(at: .now, captureRangeStart: r0, captureRangeEnd: r0,
                                 modelProposal: "{\"project\":\"Windows port\"}",
                                 userDecision: "accepted")
         ctx.insert(contrib); ctx.insert(judgment)
@@ -53,9 +54,11 @@ func runSpineSchemaTests() {
         let contribs = (try? ctx.fetch(FetchDescriptor<Contribution>())) ?? []
         expect(contribs.first?.minutes == 25, "contribution minutes round-trip")
         expect(contribs.first?.projectId == pid, "contribution projectId round-trip")
+        expect(contribs.first?.threadId == tid, "contribution threadId round-trip")
         expect(contribs.first?.sessionKind == "task", "contribution sessionKind round-trip")
         let judgments = (try? ctx.fetch(FetchDescriptor<Judgment>())) ?? []
         expect(judgments.first?.userDecision == "accepted", "judgment decision round-trip")
         expect(judgments.first?.modelProposal.contains("Windows port") == true, "judgment proposal round-trip")
+        expect(judgments.first?.captureRangeStart == r0, "judgment captureRangeStart round-trip")
     }
 }

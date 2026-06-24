@@ -34,7 +34,7 @@ final class Judgment {
     var captureRangeStart: Date
     var captureRangeEnd: Date
     var modelProposal: String   // JSON
-    var userDecision: String
+    var userDecision: String    // "accepted" | "rejected" | "edited"
     init(at: Date, captureRangeStart: Date, captureRangeEnd: Date,
          modelProposal: String, userDecision: String) {
         self.at = at; self.captureRangeStart = captureRangeStart
