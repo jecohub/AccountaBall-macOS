@@ -339,16 +339,23 @@ class AccountabilityEngine {
     @MainActor
     func ingestCapture(text: String, appHint: String? = nil) {
         guard let session = currentSession, let ctx = modelContext else { return }
-        let now = Date()
-        let mine = (try? ctx.fetch(FetchDescriptor<Capture>()))?
-            .filter { $0.sessionId == session.id }
-        if let last = mine?.max(by: { $0.lastSeenAt < $1.lastSeenAt }),
-           FreeBallDedup.isSameScreen(last.text, text) {
-            last.lastSeenAt = now
+        let ts = now()
+        let sid = session.id
+        var fd = FetchDescriptor<Capture>(
+            predicate: #Predicate { $0.sessionId == sid },
+            sortBy: [SortDescriptor(\.lastSeenAt, order: .reverse)]
+        )
+        fd.fetchLimit = 1
+        let last = try? ctx.fetch(fd).first
+        if let last, FreeBallDedup.isSameScreen(last.text, text) {
+            last.lastSeenAt = ts
         } else {
-            let cap = Capture(firstSeenAt: now, lastSeenAt: now, text: text,
+            // taskIndex is best-known-so-far: it reflects the PREVIOUS cycle's
+            // classification (this cycle's processCycle hasn't run yet) and may be
+            // nil during an active-but-taskless session. Not authoritative for this screen.
+            let cap = Capture(firstSeenAt: ts, lastSeenAt: ts, text: text,
                               mode: "task", appHint: appHint,
-                              taskIndex: state.activeTaskIndex, sessionId: session.id)
+                              taskIndex: state.activeTaskIndex, sessionId: sid)
             ctx.insert(cap)
         }
         try? ctx.save()
