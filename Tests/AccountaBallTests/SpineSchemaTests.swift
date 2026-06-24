@@ -40,5 +40,22 @@ func runSpineSchemaTests() {
         try? ctx.save()
         expect(((try? ctx.fetch(FetchDescriptor<Project>())) ?? []).isEmpty, "project deleted")
         expect(((try? ctx.fetch(FetchDescriptor<AccountaBall.Thread>())) ?? []).isEmpty, "cascade removed orphaned thread")
+
+        let pid = UUID(); let tid = UUID(); let sid2 = UUID()
+        let contrib = Contribution(at: .now, projectId: pid, threadId: tid,
+                                   sessionId: sid2, sessionKind: "task", minutes: 25,
+                                   summary: "Reshaped the confirm card")
+        let judgment = Judgment(at: .now, captureRangeStart: .now, captureRangeEnd: .now,
+                                modelProposal: "{\"project\":\"Windows port\"}",
+                                userDecision: "accepted")
+        ctx.insert(contrib); ctx.insert(judgment)
+        try? ctx.save()
+        let contribs = (try? ctx.fetch(FetchDescriptor<Contribution>())) ?? []
+        expect(contribs.first?.minutes == 25, "contribution minutes round-trip")
+        expect(contribs.first?.projectId == pid, "contribution projectId round-trip")
+        expect(contribs.first?.sessionKind == "task", "contribution sessionKind round-trip")
+        let judgments = (try? ctx.fetch(FetchDescriptor<Judgment>())) ?? []
+        expect(judgments.first?.userDecision == "accepted", "judgment decision round-trip")
+        expect(judgments.first?.modelProposal.contains("Windows port") == true, "judgment proposal round-trip")
     }
 }

@@ -92,7 +92,8 @@ enum AccountaBallStore {
                              KnowledgeTask.self, Allowance.self, TaskCompletion.self,
                              FreeBallSession.self, FreeBallCapture.self,
                              Capture.self,
-                             Project.self, Thread.self])
+                             Project.self, Thread.self,
+                             Contribution.self, Judgment.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
         return try ModelContainer(for: schema, configurations: [config])
     }
