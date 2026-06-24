@@ -90,6 +90,7 @@ class AccountabilityEngine {
             let text = await self.screenText(from: frame)
             guard !text.isEmpty else { return }
             self.lastScreenText = text
+            self.ingestCapture(text: text)
             let activeTasks = self.state.activeTasks
             guard !activeTasks.isEmpty else { return }
             let result: MultiTaskResult?
@@ -318,6 +319,39 @@ class AccountabilityEngine {
         session.endedAt = .now
         try? ctx.save()
         currentSession = nil
+    }
+
+    /// Test seam: start a session without the real capture loop, mirroring the
+    /// session-start path in `beginSession` (insert WorkSession, save, set
+    /// currentSession). Analogous to `FreeBallEngine.beginForTest()`.
+    @MainActor
+    func startSessionForTest() {
+        guard modelContext != nil else { return }
+        let session = WorkSession(startedAt: .now)
+        modelContext?.insert(session)
+        try? modelContext?.save()
+        currentSession = session
+    }
+
+    /// Persist one screen read for long-term context (de-duped like FreeBall).
+    /// Called from the capture loop after OCR; never blocks classification. Safely
+    /// no-ops if there's no active session/context (test stub path).
+    @MainActor
+    func ingestCapture(text: String, appHint: String? = nil) {
+        guard let session = currentSession, let ctx = modelContext else { return }
+        let now = Date()
+        let mine = (try? ctx.fetch(FetchDescriptor<Capture>()))?
+            .filter { $0.sessionId == session.id }
+        if let last = mine?.max(by: { $0.lastSeenAt < $1.lastSeenAt }),
+           FreeBallDedup.isSameScreen(last.text, text) {
+            last.lastSeenAt = now
+        } else {
+            let cap = Capture(firstSeenAt: now, lastSeenAt: now, text: text,
+                              mode: "task", appHint: appHint,
+                              taskIndex: state.activeTaskIndex, sessionId: session.id)
+            ctx.insert(cap)
+        }
+        try? ctx.save()
     }
 
     /// Log a single accountability check as a JustificationEvent. The drift is the
