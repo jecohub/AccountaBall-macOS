@@ -60,5 +60,11 @@ func runSpineSchemaTests() {
         expect(judgments.first?.userDecision == "accepted", "judgment decision round-trip")
         expect(judgments.first?.modelProposal.contains("Windows port") == true, "judgment proposal round-trip")
         expect(judgments.first?.captureRangeStart == r0, "judgment captureRangeStart round-trip")
+
+        let ws = WorkSession(startedAt: .now)
+        ctx.insert(ws); try? ctx.save()
+        let wsId: UUID = ws.id
+        let refetched = (try? ctx.fetch(FetchDescriptor<WorkSession>()))?.first
+        expect(refetched?.id == wsId, "WorkSession id is stable across fetch")
     }
 }
