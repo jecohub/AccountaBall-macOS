@@ -90,7 +90,8 @@ enum AccountaBallStore {
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let schema = Schema([WorkSession.self, TimelineEntry.self, JustificationEvent.self,
                              KnowledgeTask.self, Allowance.self, TaskCompletion.self,
-                             FreeBallSession.self, FreeBallCapture.self])
+                             FreeBallSession.self, FreeBallCapture.self,
+                             Capture.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
         return try ModelContainer(for: schema, configurations: [config])
     }
