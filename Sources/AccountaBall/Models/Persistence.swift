@@ -4,7 +4,7 @@ import Foundation
 @available(macOS 14, *)
 @Model
 final class WorkSession {
-    var id: UUID = UUID()
+    var id: UUID = UUID()          // stable id for cross-session links
     var startedAt: Date
     var endedAt: Date?
     @Relationship(deleteRule: .cascade) var entries: [TimelineEntry] = []

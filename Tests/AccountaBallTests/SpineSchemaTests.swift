@@ -66,5 +66,8 @@ func runSpineSchemaTests() {
         let wsId: UUID = ws.id
         let refetched = (try? ctx.fetch(FetchDescriptor<WorkSession>()))?.first
         expect(refetched?.id == wsId, "WorkSession id is stable across fetch")
+        let ws2 = WorkSession(startedAt: .now)
+        ctx.insert(ws2); try? ctx.save()
+        expect(ws.id != ws2.id, "each WorkSession gets a distinct id")
     }
 }
