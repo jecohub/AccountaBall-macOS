@@ -92,9 +92,17 @@ struct SessionBallView: View {
                     .buttonStyle(.plain)
             }
         }
-        .padding(20)
+        .padding(24)
+        .frame(width: 280)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.black)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
         .transition(.opacity)
     }
 
