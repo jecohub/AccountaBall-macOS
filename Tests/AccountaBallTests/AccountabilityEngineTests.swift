@@ -391,6 +391,20 @@ func runEngineSessionTests() {
             expect(rules[0]?.contains("budget for the deck") == true, "accept creates an allowance with the rule on task 0")
             expect(state.appPhase == .session, "accept resumes the session")
         }
+
+        // 5. Vouch the task: after accepting once, a DIFFERENT ambiguous label
+        //    attributed to the same still-incomplete task is NOT re-asked — the
+        //    user vouched the task, so the app stops nagging on "can't tell" reads.
+        do {
+            let (state, engine) = makeEngine()
+            engine.processResult(.ambiguous(label: "Excel budget sheet"))
+            engine.acceptAmbiguous(reason: "budget for the deck")   // vouches task 0
+            engine.resetSettleWindowToPast()
+            expect(state.appPhase == .session, "accept resumed the session")
+            engine.processResult(.ambiguous(label: "a totally different-looking slide draft"))
+            expect(state.appPhase == .session, "a new ambiguous label on a vouched task is not re-asked")
+            expect(state.activeTaskIndex == 0, "vouched ambiguous read is treated as on-task for the vouched task")
+        }
     }
 
     // Task 7: timed 5-minute break. takeBreak() returns to .session and goes

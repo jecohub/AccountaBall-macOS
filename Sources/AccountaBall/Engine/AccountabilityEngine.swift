@@ -54,6 +54,13 @@ class AccountabilityEngine {
     /// to a grace), the same screen stays silent. Reset on `beginSession`.
     private var askedActivities: Set<String> = []
 
+    /// Tasks the user has vouched for this session by accepting an ambiguous ask
+    /// ("yes, this is related"). Once a task is vouched, later AMBIGUOUS ("can't
+    /// tell") reads attributed to it are treated as on-task instead of re-asking —
+    /// the AI's per-screen label varies, so exact-label ask-once (askedActivities)
+    /// isn't enough; the user vouched the *task*, not one label. Reset per session.
+    private var vouchedTaskIndices: Set<Int> = []
+
     /// Confirmed drifts this session = off-task JustificationEvents. Derived so it
     /// can never desync from the record the recap shows.
     var driftCount: Int {
@@ -309,6 +316,7 @@ class AccountabilityEngine {
         try? modelContext?.save()
         currentSession = session
         askedActivities = []
+        vouchedTaskIndices = []
         clearOffTaskStreak()
         resetSettleWindow()
     }
@@ -535,6 +543,22 @@ class AccountabilityEngine {
             // "Honestly can't tell." Not a confirmed drift — reset suspicion, then
             // ask ONCE per activity (and stay silent if a grace already covers it).
             lastActivityLabel = label
+            // Vouched task: the user already confirmed this task's work can look
+            // ambiguous. Treat "can't tell" reads as on-task for it — don't re-ask
+            // for every new per-screen label the model invents.
+            if let idx = state.tasks.firstIndex(where: { !$0.isComplete }),
+               vouchedTaskIndices.contains(idx) {
+                record(taskIndex: idx, label: label)
+                suspicionCount = 0
+                clearOffTaskStreak()
+                state.activeTaskIndex = idx
+                state.ballState = .onTask
+                if state.tasks.indices.contains(idx) {
+                    state.tasks[idx].timeOnTask += AppConstants.cycleSeconds
+                }
+                dbg("ambiguous but task \(idx) vouched — treated on-task, no ask")
+                return
+            }
             record(taskIndex: nil, label: label)
             suspicionCount = 0   // ambiguous is not a confirmed drift
             clearOffTaskStreak()
@@ -814,7 +838,10 @@ class AccountabilityEngine {
         // disambiguate among multiple active tasks.
         let taskIndex = state.tasks.firstIndex(where: { !$0.isComplete })
         logCheck(kind: "ambiguous", justified: true, activity: label, excuse: reason, rule: rule, taskIndex: taskIndex)
-        if let idx = taskIndex { createAllowance(rule: rule, forTaskIndex: idx) }
+        if let idx = taskIndex {
+            createAllowance(rule: rule, forTaskIndex: idx)
+            vouchedTaskIndices.insert(idx)   // stop nagging on this task's ambiguous reads
+        }
         resumeAfterExcuse()
     }
 
